@@ -119,7 +119,15 @@
   .spinner { display:inline-block; width:15px; height:15px; border:2px solid rgba(255,255,255,0.2); border-top-color:var(--cyan); border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  .hidden { display:none !important; }
+  .analysis-summary {
+    margin-top:10px; padding:10px 14px;
+    background:var(--bg3); border-radius:8px;
+    font-size:12px; color:var(--muted); line-height:1.7;
+  }
+  .analysis-summary strong { color:var(--cyan); }
+  .analysis-summary .stat-line { display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .analysis-summary .stat-line:last-child { border-bottom:none; }
+  .analysis-summary .stat-val { color:var(--text); font-family:var(--font-mono); font-size:11px; }
 
   /* Tabs */
   .tabs { display:flex; gap:4px; margin-bottom:14px; flex-wrap:wrap; }
@@ -331,21 +339,64 @@
       <div class="card hidden" id="resultsCard">
         <div class="card-header">Results</div>
         <div class="card-body">
+
+          <!-- Stats strip -->
           <div class="stats-row" id="statsRow"></div>
+
+          <!-- Analysis tabs -->
           <div class="tabs">
             <div class="tab active" data-tab="overlay">Overlay</div>
-            <div class="tab" data-tab="histogram">Area Dist.</div>
-            <div class="tab" data-tab="scatter">Morphology</div>
+            <div class="tab" data-tab="size">Size Dist.</div>
+            <div class="tab" data-tab="morphology">Morphology</div>
+            <div class="tab" data-tab="spatial">Spatial</div>
+            <div class="tab" data-tab="boxplot">Box Plot</div>
           </div>
+
+          <!-- Overlay -->
           <div class="tab-panel active" id="tab-overlay">
             <img id="overlayImg" class="result-image">
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--font-mono);">
+              Each colour = one segmented object. Click overlay to zoom.
+            </div>
           </div>
-          <div class="tab-panel" id="tab-histogram">
+
+          <!-- Size distribution -->
+          <div class="tab-panel" id="tab-size">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+              <strong style="color:var(--text)">Population size analysis</strong> — "Are my cells heterogeneous?"
+            </div>
             <div class="chart-wrap"><canvas id="histChart"></canvas></div>
+            <div class="analysis-summary" id="sizeSummary"></div>
           </div>
-          <div class="tab-panel" id="tab-scatter">
+
+          <!-- Morphology scatter -->
+          <div class="tab-panel" id="tab-morphology">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+              <strong style="color:var(--text)">Shape analysis</strong> — "Do my cells become rounder after treatment?"
+            </div>
             <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
+            <div class="chart-wrap" style="margin-top:12px;"><canvas id="circChart"></canvas></div>
+            <div class="analysis-summary" id="morphSummary"></div>
           </div>
+
+          <!-- Spatial heatmap -->
+          <div class="tab-panel" id="tab-spatial">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+              <strong style="color:var(--text)">Spatial distribution</strong> — "Do cells cluster at the edges?"
+            </div>
+            <canvas id="spatialCanvas" style="width:100%;border-radius:8px;display:block;"></canvas>
+            <div class="analysis-summary" id="spatialSummary"></div>
+          </div>
+
+          <!-- Box plot -->
+          <div class="tab-panel" id="tab-boxplot">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">
+              <strong style="color:var(--text)">Statistical summary</strong> — compare distributions across metrics
+            </div>
+            <div class="chart-wrap"><canvas id="boxChart"></canvas></div>
+            <div class="analysis-summary" id="boxSummary"></div>
+          </div>
+
           <div class="warn-list" id="warnList"></div>
           <div class="dl-row" id="dlRow"></div>
         </div>
@@ -358,9 +409,24 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-const API = window.location.hostname === 'compute.segmentum.bio'
-  ? 'https://compute.segmentum.bio'
-  : 'https://compute.segmentum.bio';
+// Run health check immediately — before any other JS
+(async function() {
+  try {
+    const r = await fetch('https://compute.segmentum.bio/health');
+    const d = await r.json();
+    const dot  = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    if (d.status === 'ok') {
+      dot.className  = 'status-dot online';
+      text.textContent = 'compute online · GPU ' + (d.gpu_available ? '✓' : '✗') + ' · ' + d.available_backends.join(', ');
+    }
+  } catch(e) {
+    document.getElementById('statusDot').className = 'status-dot offline';
+    document.getElementById('statusText').textContent = 'compute offline: ' + e.message;
+  }
+})();
+
+const API = 'https://compute.segmentum.bio';
 
 // State
 let currentFile = null;
@@ -385,28 +451,6 @@ function setProgress(pct) {
   $('progressBar').classList.remove('hidden');
   $('progressFill').style.width = pct + '%';
 }
-
-// ── Health check ──────────────────────────────────────────────────────────────
-async function checkHealth() {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 6000);
-    const r = await fetch(`${API}/health`, { signal: controller.signal });
-    clearTimeout(timer);
-    const d = await r.json();
-    if (d.status === 'ok') {
-      $('statusDot').className = 'status-dot online';
-      $('statusText').textContent =
-        `compute online · GPU ${d.gpu_available ? '✓' : '✗'} · ${d.available_backends.join(', ')}` +
-        (d.training_pairs > 0 ? ` · ${d.training_pairs} GT pairs` : '');
-    }
-  } catch {
-    $('statusDot').className = 'status-dot offline';
-    $('statusText').textContent = 'compute offline — start the server';
-  }
-}
-checkHealth();
-setInterval(checkHealth, 30000);
 
 // ── File handling ─────────────────────────────────────────────────────────────
 $('fileInput').addEventListener('change', e => handleFile(e.target.files[0]));
@@ -574,60 +618,146 @@ async function runSegmentation() {
 function renderResults(r) {
   $('resultsCard').classList.remove('hidden');
   const s = r.plot_data.summary_stats || {};
+  const m = r.measurements || [];
   $('statsRow').innerHTML = [
-    { num: r.n_objects,                               lbl: 'Objects' },
-    { num: s.mean_area ? s.mean_area.toFixed(0) : '–', lbl: 'Mean area px²' },
-    { num: r.runtime_seconds.toFixed(1) + 's',        lbl: 'Runtime' },
-    { num: r.backend_used,                             lbl: 'Backend' },
+    { num: r.n_objects, lbl: 'Objects' },
+    { num: s.mean_area ? s.mean_area.toFixed(0) : '-', lbl: 'Mean area px2' },
+    { num: s.mean_circularity ? s.mean_circularity.toFixed(2) : '-', lbl: 'Circularity' },
+    { num: r.runtime_seconds.toFixed(1) + 's', lbl: 'Runtime' },
   ].map(c => `<div class="stat-chip"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>`).join('');
 
   $('overlayImg').src = 'data:image/png;base64,' + r.overlay_b64;
-  renderHistogram(r.plot_data.area_histogram);
-  renderScatter(r.plot_data.morphology_scatter);
-  $('warnList').innerHTML = (r.warnings||[]).map(w => `<div class="warn-item">${w}</div>`).join('');
 
+  const areas  = m.map(o => o.area_px).filter(v => v > 0);
+  const circs  = m.map(o => o.circularity).filter(v => v > 0);
+  const eccs   = m.map(o => o.eccentricity).filter(v => v !== undefined && v >= 0);
+  const perims = m.map(o => o.perimeter_px).filter(v => v > 0);
+  const cx     = m.map(o => o.centroid_x).filter(v => v !== undefined);
+  const cy2    = m.map(o => o.centroid_y).filter(v => v !== undefined);
+
+  renderHist(areas, 'histChart', 'Area (px2)', 'rgba(0,229,200,0.5)', '#00e5c8');
+  if ($('sizeSummary') && areas.length) {
+    const sorted = [...areas].sort((a,b)=>a-b);
+    const med = sorted[Math.floor(sorted.length/2)];
+    const cv = areas.length > 1 ? (stdv(areas)/gavg(areas)*100).toFixed(0) : 0;
+    $('sizeSummary').innerHTML = sLines([
+      ['Mean area', gavg(areas).toFixed(0) + ' px2'],
+      ['Median area', med.toFixed(0) + ' px2'],
+      ['Coefficient of variation', cv + '% - ' + (cv>50?'high heterogeneity':cv>25?'moderate spread':'uniform population')],
+      ['Size range', Math.min(...areas).toFixed(0) + ' - ' + Math.max(...areas).toFixed(0) + ' px2'],
+    ]);
+  }
+
+  if (circs.length) {
+    const pts = areas.map((a,i) => ({x:a, y:circs[i]}));
+    renderScat(pts, 'scatterChart', 'Area (px2)', 'Circularity');
+    renderHist(circs, 'circChart', 'Circularity (0=elongated 1=round)', 'rgba(59,130,246,0.5)', '#3b82f6');
+    if ($('morphSummary')) {
+      const mc = gavg(circs);
+      $('morphSummary').innerHTML = sLines([
+        ['Mean circularity', mc.toFixed(3) + ' - ' + (mc>0.7?'mostly round':mc>0.4?'mixed':'mostly elongated')],
+        ['Round objects (>0.7)', (circs.filter(c=>c>0.7).length/circs.length*100).toFixed(0) + '% of population'],
+        ['Elongated (<0.4)', (circs.filter(c=>c<0.4).length/circs.length*100).toFixed(0) + '% of population'],
+        ['Mean eccentricity', eccs.length ? gavg(eccs).toFixed(3) : '-'],
+      ]);
+    }
+  }
+
+  if (cx.length) renderSpatialMap(cx, cy2, r.n_objects);
+
+  const bsets = [areas, circs, perims].filter(a=>a.length);
+  const blbls = ['Area','Circularity','Perimeter'].slice(0, bsets.length);
+  renderBoxPlot(bsets, blbls);
+  if ($('boxSummary')) $('boxSummary').innerHTML = sLines([
+    ['Total objects', r.n_objects],
+    ['Backend', r.backend_used + ' (' + r.model_used + ')'],
+    ['Runtime', r.runtime_seconds.toFixed(2) + 's'],
+  ]);
+
+  $('warnList').innerHTML = (r.warnings||[]).map(w=>`<div class="warn-item">${w}</div>`).join('');
   $('dlRow').innerHTML = `
-    <button class="dl-btn tif" onclick="downloadMasksTIF()">⬇ Masks.tif (uint16)</button>
-    <button class="dl-btn" onclick="downloadCSV()">📊 CSV</button>
-    <button class="dl-btn" onclick="downloadOverlay()">🖼️ Overlay</button>
+    <button class="dl-btn tif" onclick="downloadMasksTIF()">Download Masks.tif (uint16)</button>
+    <button class="dl-btn" onclick="downloadCSV()">CSV</button>
+    <button class="dl-btn" onclick="downloadOverlay()">Overlay</button>
   `;
 }
 
-// ── Charts ────────────────────────────────────────────────────────────────────
-const cDefaults = {
+function sLines(rows) {
+  return rows.map(([k,v])=>`<div class="stat-line"><span>${k}</span><span class="stat-val">${v}</span></div>`).join('');
+}
+function gavg(a) { return a.reduce((s,v)=>s+v,0)/a.length; }
+function stdv(a) { const m=gavg(a); return Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/a.length); }
+
+const cDef = {
   responsive:true, maintainAspectRatio:false,
   plugins:{legend:{display:false}},
   scales:{
-    x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7a8d',font:{family:'JetBrains Mono',size:10}}},
-    y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7a8d',font:{family:'JetBrains Mono',size:10}}},
+    x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7a8d',font:{size:10}}},
+    y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6b7a8d',font:{size:10}}},
   }
 };
-function renderHistogram(data) {
-  if (!data?.values) return;
-  const vals = data.values, bins = 20;
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const step = (max-min)/bins||1, counts = Array(bins).fill(0), labels = [];
-  for(let i=0;i<bins;i++) labels.push((min+i*step).toFixed(0));
-  vals.forEach(v => { const idx = Math.min(Math.floor((v-min)/step),bins-1); counts[idx]++; });
-  if(histChartInst) histChartInst.destroy();
-  histChartInst = new Chart($('histChart'), {
-    type:'bar',
-    data:{labels, datasets:[{data:counts, backgroundColor:'rgba(0,229,200,0.5)', borderColor:'#00e5c8', borderWidth:1, borderRadius:3}]},
-    options:cDefaults
-  });
+const CI = {};
+function dc(id) { if(CI[id]){CI[id].destroy();delete CI[id];} }
+
+function renderHist(vals, id, xlabel, bg, border) {
+  if (!vals || !vals.length) return;
+  dc(id);
+  const bins=Math.min(25,Math.ceil(Math.sqrt(vals.length)));
+  const mn=Math.min(...vals),mx=Math.max(...vals),step=(mx-mn)/bins||1;
+  const counts=Array(bins).fill(0),labels=[];
+  for(let i=0;i<bins;i++) labels.push((mn+i*step).toFixed(1));
+  vals.forEach(v=>{ const idx=Math.min(Math.floor((v-mn)/step),bins-1); counts[idx]++; });
+  CI[id]=new Chart($(id),{type:'bar',data:{labels,datasets:[{data:counts,backgroundColor:bg,borderColor:border,borderWidth:1,borderRadius:3}]},
+    options:{...cDef,plugins:{legend:{display:false},title:{display:true,text:xlabel,color:'#6b7a8d',font:{size:11}}}}});
 }
-function renderScatter(data) {
-  if (!data?.x) return;
-  const points = data.x.map((x,i) => ({x, y:data.y[i]}));
-  if(scatterChartInst) scatterChartInst.destroy();
-  scatterChartInst = new Chart($('scatterChart'), {
-    type:'scatter',
-    data:{datasets:[{data:points, backgroundColor:'rgba(224,64,160,0.5)', borderColor:'#e040a0', borderWidth:1, pointRadius:4}]},
-    options:{...cDefaults, scales:{
-      x:{...cDefaults.scales.x, title:{display:true,text:'Eccentricity',color:'#6b7a8d'}},
-      y:{...cDefaults.scales.y, title:{display:true,text:'Area (px²)',color:'#6b7a8d'}},
-    }}
+
+function renderScat(pts, id, xlabel, ylabel) {
+  if (!pts || !pts.length) return;
+  dc(id);
+  CI[id]=new Chart($(id),{type:'scatter',data:{datasets:[{data:pts,backgroundColor:'rgba(224,64,160,0.5)',borderColor:'#e040a0',borderWidth:1,pointRadius:3}]},
+    options:{...cDef,scales:{x:{...cDef.scales.x,title:{display:true,text:xlabel,color:'#6b7a8d',font:{size:10}}},y:{...cDef.scales.y,title:{display:true,text:ylabel,color:'#6b7a8d',font:{size:10}}}}}});
+}
+
+function renderBoxPlot(datasets, labels) {
+  if (!datasets.length || !datasets[0].length) return;
+  dc('boxChart');
+  const summ=datasets.map(d=>{
+    const s=[...d].sort((a,b)=>a-b);
+    const q1=s[Math.floor(s.length*.25)],med=s[Math.floor(s.length*.5)],q3=s[Math.floor(s.length*.75)];
+    const rng=s[s.length-1]-s[0]||1;
+    return{nq1:(q1-s[0])/rng,nmed:(med-s[0])/rng,nq3:(q3-s[0])/rng};
   });
+  CI['boxChart']=new Chart($('boxChart'),{type:'bar',data:{labels,datasets:[
+    {label:'IQR',data:summ.map(s=>s.nq3-s.nq1),backgroundColor:'rgba(0,229,200,0.25)',borderColor:'#00e5c8',borderWidth:1,borderRadius:4},
+    {label:'Median',data:summ.map(s=>s.nmed),backgroundColor:'rgba(0,229,200,0.8)',borderColor:'#00e5c8',borderWidth:1,barThickness:6},
+  ]},options:{...cDef,plugins:{legend:{display:true,labels:{color:'#6b7a8d',font:{size:10}}}}}});
+}
+
+function renderSpatialMap(xs, ys, n) {
+  const cv=$('spatialCanvas'); if(!cv||!xs.length) return;
+  const W=cv.offsetWidth||400,H=Math.round(W*0.55);
+  cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#0d1117'; ctx.fillRect(0,0,W,H);
+  const xmn=Math.min(...xs),xmx=Math.max(...xs),ymn=Math.min(...ys),ymx=Math.max(...ys);
+  const xr=xmx-xmn||1,yr=ymx-ymn||1;
+  const gW=20,gH=15,grid=Array.from({length:gH},()=>Array(gW).fill(0));
+  xs.forEach((x,i)=>{ const gx=Math.min(Math.floor((x-xmn)/xr*gW),gW-1),gy=Math.min(Math.floor((ys[i]-ymn)/yr*gH),gH-1); grid[gy][gx]++; });
+  const mxd=Math.max(...grid.flat())||1;
+  const cw=W/gW,ch=H/gH;
+  grid.forEach((row,gy)=>row.forEach((val,gx)=>{
+    const t=val/mxd;
+    ctx.fillStyle=`rgba(0,${Math.round(100+t*129)},${Math.round(150+t*78)},${0.1+t*0.85})`;
+    ctx.fillRect(gx*cw,gy*ch,cw,ch);
+  }));
+  xs.forEach((x,i)=>{ ctx.beginPath(); ctx.arc((x-xmn)/xr*W,(ys[i]-ymn)/yr*H,2,0,Math.PI*2); ctx.fillStyle='rgba(0,229,200,0.7)'; ctx.fill(); });
+  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.strokeRect(0,0,W,H);
+  if($('spatialSummary')){
+    const hx=(xmx+xmn)/2,hy=(ymx+ymn)/2,q=[0,0,0,0];
+    xs.forEach((x,i)=>{ const l=x<hx,t=ys[i]<hy; q[t&&l?0:t&&!l?1:!t&&l?2:3]++; });
+    const mxq=Math.max(...q),qi=['top-left','top-right','bottom-left','bottom-right'][q.indexOf(mxq)];
+    $('spatialSummary').innerHTML=sLines([['Dominant region',qi+' ('+( mxq/n*100).toFixed(0)+'% of objects)'],['Distribution',mxq/n>0.4?'Clustered':mxq/n>0.3?'Slightly uneven':'Uniform']]);
+  }
 }
 
 // ── Downloads ─────────────────────────────────────────────────────────────────
@@ -740,6 +870,8 @@ async function startTraining() {
     btn.disabled = false;
     btn.textContent = '🧠 Retry training';
   }
+}
+
 // Quality toggle visual
 const qt = $('qualityToggle');
 if (qt) {
