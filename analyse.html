@@ -230,7 +230,8 @@
                 </optgroup>
                 <optgroup label="Specialist">
                   <option value="omnipose|bact_omni">Omnipose — bacteria</option>
-                  <option value="stardist|2D_versatile_fluo">StarDist — round nuclei</option>
+                  <option value="stardist|2D_versatile_fluo">StarDist — cells &amp; nuclei (versatile)</option>
+                  <option value="stardist|2D_versatile_he">StarDist — H&amp;E tissue</option>
                 </optgroup>
                 <optgroup label="Fallback">
                   <option value="threshold|otsu">Threshold — Otsu</option>
@@ -596,7 +597,11 @@ async function runSegmentation() {
     let fakePct = 10;
     const ticker = setInterval(() => { fakePct = Math.min(fakePct + 2, 85); setProgress(fakePct); }, 500);
 
-    const res = await fetch(`${API}/segment`, { method:'POST', body:fd });
+    // 5 minute timeout — allows model weights to download on first use
+    const segCtrl = new AbortController();
+    const segTimer = setTimeout(() => segCtrl.abort(), 300000);
+    const res = await fetch(`${API}/segment`, { method:'POST', body:fd, signal:segCtrl.signal });
+    clearTimeout(segTimer);
     clearInterval(ticker);
     if (!res.ok) throw new Error(await res.text());
     currentResult = await res.json();
