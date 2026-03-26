@@ -358,24 +358,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-// Run health check immediately — before any other JS
-(async function() {
-  try {
-    const r = await fetch('https://compute.segmentum.bio/health');
-    const d = await r.json();
-    const dot  = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-    if (d.status === 'ok') {
-      dot.className  = 'status-dot online';
-      text.textContent = 'compute online · GPU ' + (d.gpu_available ? '✓' : '✗') + ' · ' + d.available_backends.join(', ');
-    }
-  } catch(e) {
-    document.getElementById('statusDot').className = 'status-dot offline';
-    document.getElementById('statusText').textContent = 'compute offline: ' + e.message;
-  }
-})();
-
-const API = 'https://compute.segmentum.bio';
+const API = window.location.hostname === 'compute.segmentum.bio'
+  ? 'https://compute.segmentum.bio'
+  : 'https://compute.segmentum.bio';
 
 // State
 let currentFile = null;
@@ -400,6 +385,28 @@ function setProgress(pct) {
   $('progressBar').classList.remove('hidden');
   $('progressFill').style.width = pct + '%';
 }
+
+// ── Health check ──────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const r = await fetch(`${API}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    const d = await r.json();
+    if (d.status === 'ok') {
+      $('statusDot').className = 'status-dot online';
+      $('statusText').textContent =
+        `compute online · GPU ${d.gpu_available ? '✓' : '✗'} · ${d.available_backends.join(', ')}` +
+        (d.training_pairs > 0 ? ` · ${d.training_pairs} GT pairs` : '');
+    }
+  } catch {
+    $('statusDot').className = 'status-dot offline';
+    $('statusText').textContent = 'compute offline — start the server';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
 
 // ── File handling ─────────────────────────────────────────────────────────────
 $('fileInput').addEventListener('change', e => handleFile(e.target.files[0]));
