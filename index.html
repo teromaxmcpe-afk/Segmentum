@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segmentum — From Raw Microscopy to Results in Minutes</title>
+<meta name="description" content="Upload your microscopy images. Get publication-ready segmentation, quantification, and figures — no code, no GPU setup, no headaches.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─── TOKENS ─────────────────────────────────────────────────────────────── */
+:root {
+  --ink:     #06080d;
+  --ink-2:   #0b0f17;
+  --ink-3:   #111820;
+  --ink-4:   #1a2535;
+  --paper:   #e8ecf1;
+  --paper-2: #8899aa;
+  --paper-3: #4a5a6a;
+  --paper-4: #2a3545;
+  --teal:    #00e5c8;
+  --pink:    #e040a0;
+  --blue:    #3b82f6;
+  --gold:    #f59e0b;
+  --teal-d:  rgba(0,229,200,0.08);
+  --teal-b:  rgba(0,229,200,0.18);
+  --teal-g:  rgba(0,229,200,0.4);
+  --mono:    'JetBrains Mono', monospace;
+  --serif:   'DM Serif Display', serif;
+  --sans:    'DM Sans', sans-serif;
+}
+
+/* ─── RESET ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; font-size:16px; }
+body {
+  font-family: var(--sans);
+  background: var(--ink);
+  color: var(--paper);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── GRAIN ──────────────────────────────────────────────────────────────── */
+body::after {
+  content:''; position:fixed; inset:0; z-index:9998; pointer-events:none;
+  opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────────────────────────── */
+.wrap { max-width:1140px; margin:0 auto; padding:0 32px; }
+.wrap--wide { max-width:1400px; margin:0 auto; padding:0 32px; }
+
+/* ─── NAV ────────────────────────────────────────────────────────────────── */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  padding:0 32px; height:64px;
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(6,8,13,0); backdrop-filter:blur(0px);
+  border-bottom:1px solid transparent;
+  transition: background 0.4s, backdrop-filter 0.4s, border-color 0.4s;
+}
+nav.scrolled {
+  background:rgba(6,8,13,0.88);
+  backdrop-filter:blur(24px);
+  border-color:rgba(255,255,255,0.06);
+}
+.nav-logo {
+  font-family:var(--serif); font-size:1.4rem; color:var(--paper);
+  text-decoration:none; letter-spacing:-0.02em; display:flex; align-items:center; gap:10px;
+}
+.nav-logo-dot {
+  width:8px; height:8px; border-radius:50%; background:var(--teal);
+  animation:breathe 3s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+.nav-logo em { color:var(--teal); font-style:normal; }
+.nav-r { display:flex; align-items:center; gap:28px; }
+.nav-r a { color:var(--paper-2); text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+.nav-r a:hover { color:var(--paper); }
+.nav-r .nav-hi { color:var(--teal); font-weight:600; }
+.nav-r .nav-btn {
+  color:var(--ink) !important; background:var(--teal);
+  padding:8px 20px; border-radius:7px; font-weight:700; font-size:0.875rem;
+  transition:all 0.2s;
+}
+.nav-r .nav-btn:hover { box-shadow:0 0 24px rgba(0,229,200,0.4); transform:translateY(-1px); }
+
+/* ─── HERO ───────────────────────────────────────────────────────────────── */
+.hero {
+  position:relative; min-height:100vh;
+  display:flex; flex-direction:column; justify-content:center;
+  padding:120px 0 80px; overflow:hidden;
+}
+
+/* Microscopy-inspired SVG cell field background */
+.hero-canvas {
+  position:absolute; inset:0; pointer-events:none; overflow:hidden;
+}
+.hero-canvas svg { width:100%; height:100%; opacity:0.12; }
+
+.hero-inner {
+  position:relative; z-index:2;
+  display:grid; grid-template-columns:1fr 480px; gap:80px;
+  align-items:center;
+}
+
+.hero-badge {
+  display:inline-flex; align-items:center; gap:8px; margin-bottom:32px;
+  font-family:var(--mono); font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--teal); background:var(--teal-d); border:1px solid var(--teal-b);
+  padding:6px 14px; border-radius:100px; text-decoration:none; transition:all 0.2s;
+  width:fit-content;
+}
+.hero-badge:hover { background:rgba(0,229,200,0.13); border-color:var(--teal-g); }
+.hero-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--teal); animation:breathe 2s ease-in-out infinite; }
+
+.hero-h1 {
+  font-family:var(--serif);
+  font-size:clamp(3.2rem,5.5vw,5.2rem);
+  line-height:1.02; letter-spacing:-0.04em;
+  margin-bottom:28px;
+}
+.hero-h1 .l1 { display:block; }
+.hero-h1 .l2 { display:block; }
+.hero-h1 .l3 {
+  display:block; font-style:italic; color:var(--teal);
+  background:linear-gradient(135deg,var(--teal),#00c4b4 50%,var(--blue));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+
+.hero-sub {
+  font-size:1.15rem; color:var(--paper-2); line-height:1.8;
+  max-width:540px; margin-bottom:44px; font-weight:300;
+}
+
+.hero-btns { display:flex; gap:12px; margin-bottom:48px; flex-wrap:wrap; }
+.btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:14px 28px; border-radius:10px; font-weight:600; font-size:0.95rem;
+  text-decoration:none; transition:all 0.2s; font-family:var(--sans); border:none; cursor:pointer;
+}
+.btn-primary { background:var(--teal); color:var(--ink); }
+.btn-primary:hover { transform:translateY(-2px); box-shadow:0 10px 40px rgba(0,229,200,0.35); }
+.btn-ghost { background:transparent; color:var(--paper); border:1px solid rgba(255,255,255,0.12); }
+.btn-ghost:hover { border-color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.04); }
+
+.hero-proof {
+  display:flex; align-items:center; gap:28px; flex-wrap:wrap;
+}
+.proof-stat { }
+.proof-num { font-family:var(--mono); font-size:1.5rem; font-weight:600; color:var(--teal); }
+.proof-lbl { font-size:0.75rem; color:var(--paper-3); margin-top:2px; }
+.proof-divider { width:1px; height:32px; background:rgba(255,255,255,0.08); }
+
+/* Hero right: floating instrument panel */
+.hero-panel {
+  background:var(--ink-2); border:1px solid rgba(255,255,255,0.07);
+  border-radius:18px; overflow:hidden;
+  box-shadow:0 40px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06);
+  animation:floatPanel 6s ease-in-out infinite alternate;
+}
+@keyframes floatPanel { from{transform:translateY(0)} to{transform:translateY(-12px)} }
+
+.panel-top {
+  padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.2);
+}
+.pdot { width:10px; height:10px; border-radius:50%; }
+.pdot:nth-child(1){background:#ff5f57} .pdot:nth-child(2){background:#febc2e} .pdot:nth-child(3){background:#28c840}
+.panel-filename { font-family:var(--mono); font-size:0.68rem; color:var(--paper-3); margin-left:8px; }
+
+.panel-body { padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.panel-img {
+  aspect-ratio:1; border-radius:10px; overflow:hidden; position:relative;
+  background:linear-gradient(135deg,#060c14,#0d1828);
+}
+.panel-img-label {
+  position:absolute; top:8px; left:8px; z-index:2;
+  font-family:var(--mono); font-size:0.58rem; text-transform:uppercase; letter-spacing:0.1em;
+  color:var(--paper-3); background:rgba(0,0,0,0.5); padding:3px 6px; border-radius:4px;
+}
+
+/* Raw cells simulation */
+.raw-cell {
+  position:absolute; border-radius:50%;
+  border:1px solid rgba(80,200,160,0.2);
+  background:radial-gradient(circle at 38% 38%,rgba(40,140,100,0.25),transparent 70%);
+}
+.r1{width:42%;height:42%;top:8%;left:5%}
+.r2{width:35%;height:35%;top:5%;left:55%}
+.r3{width:48%;height:48%;top:38%;left:28%}
+.r4{width:30%;height:30%;top:56%;left:6%}
+.r5{width:38%;height:38%;top:50%;left:62%}
+.r6{width:28%;height:28%;top:74%;left:40%}
+.rn{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(40,80,200,0.6),rgba(20,40,140,0.2));top:28%;left:28%;width:44%;height:44%;}
+
+/* Segmented simulation */
+.seg-cell { position:absolute; border-radius:50%; border:2px solid; }
+.s1{width:42%;height:42%;top:8%;left:5%;border-color:#00e5c8;background:rgba(0,229,200,0.06)}
+.s2{width:35%;height:35%;top:5%;left:55%;border-color:#e040a0;background:rgba(224,64,160,0.06)}
+.s3{width:48%;height:48%;top:38%;left:28%;border-color:#3b82f6;background:rgba(59,130,246,0.06)}
+.s4{width:30%;height:30%;top:56%;left:6%;border-color:#f59e0b;background:rgba(245,158,11,0.06)}
+.s5{width:38%;height:38%;top:50%;left:62%;border-color:#00e5c8;background:rgba(0,229,200,0.06)}
+.s6{width:28%;height:28%;top:74%;left:40%;border-color:#a78bfa;background:rgba(167,139,250,0.06)}
+.slbl{position:absolute;top:4px;right:5px;font-family:var(--mono);font-size:0.5rem;padding:1px 4px;border-radius:3px}
+.s1 .slbl{color:#00e5c8;background:rgba(0,229,200,0.15)}
+.s2 .slbl{color:#e040a0;background:rgba(224,64,160,0.15)}
+.s3 .slbl{color:#3b82f6;background:rgba(59,130,246,0.15)}
+.s4 .slbl{color:#f59e0b;background:rgba(245,158,11,0.15)}
+.s5 .slbl{color:#00e5c8;background:rgba(0,229,200,0.15)}
+.s6 .slbl{color:#a78bfa;background:rgba(167,139,250,0.15)}
+
+.panel-metrics { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 16px 16px; }
+.pm {
+  background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05);
+  border-radius:8px; padding:10px 12px;
+}
+.pm-v { font-family:var(--mono); font-size:1rem; font-weight:600; color:var(--teal); }
+.pm-l { font-size:0.68rem; color:var(--paper-3); margin-top:2px; }
+
+.panel-bar {
+  margin:0 16px 16px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.05);
+  border-radius:8px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between;
+}
+.pb-label { font-family:var(--mono); font-size:0.65rem; color:var(--paper-3); }
+.pb-pill {
+  font-family:var(--mono); font-size:0.65rem; font-weight:600;
+  color:var(--teal); background:rgba(0,229,200,0.1); border:1px solid rgba(0,229,200,0.2);
+  padding:3px 10px; border-radius:100px;
+}
+
+/* ─── FILMSTRIP ──────────────────────────────────────────────────────────── */
+.filmstrip-section { padding:80px 0; overflow:hidden; }
+.filmstrip-label {
+  font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em;
+  color:var(--paper-3); margin-bottom:24px; padding:0 32px;
+}
+.filmstrip-outer { overflow:hidden; width:100%; }
+.filmstrip-track {
+  display:flex; gap:16px;
+  width:max-content;
+  will-change:transform;
+}
+.film-card {
+  width:280px; flex-shrink:0;
+  background:var(--ink-2); border:1px solid rgba(255,255,255,0.06);
+  border-radius:12px; overflow:hidden; transition:border-color 0.3s;
+}
+.film-card:hover { border-color:rgba(0,229,200,0.25); }
+.film-header {
+  padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--mono); font-size:0.62rem; color:var(--paper-3);
+}
+.film-badge { color:var(--teal); background:rgba(0,229,200,0.1); padding:2px 7px; border-radius:100px; }
+.film-img {
+  width:100%; aspect-ratio:4/3;
+  background:linear-gradient(135deg,#070c14,#0e1928);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:0.7rem; color:var(--paper-3);
+  position:relative; overflow:hidden;
+}
+.film-img img { width:100%; height:100%; object-fit:cover; }
+.film-footer {
+  padding:10px 12px; display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--mono); font-size:0.65rem;
+}
+.film-count { color:var(--teal); font-weight:600; }
+.film-time { color:var(--paper-3); }
+
+/* ─── MANIFESTO ──────────────────────────────────────────────────────────── */
+.manifesto { padding:120px 0; position:relative; }
+.manifesto::before {
+  content:''; position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
+  height:1px; background:linear-gradient(90deg,transparent,rgba(0,229,200,0.15) 30%,rgba(0,229,200,0.15) 70%,transparent);
+  pointer-events:none;
+}
+.manifesto-inner {
+  display:grid; grid-template-columns:240px 1fr; gap:80px; align-items:start;
+}
+.manifesto-index {
+  font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em;
+  color:var(--paper-3); padding-top:8px; position:sticky; top:100px;
+}
+.manifesto-index ul { list-style:none; display:flex; flex-direction:column; gap:12px; margin-top:20px; }
+.manifesto-index li { color:var(--paper-4); cursor:pointer; transition:color 0.2s; padding-left:12px; border-left:1px solid transparent; }
+.manifesto-index li:hover,.manifesto-index li.active { color:var(--teal); border-color:var(--teal); }
+
+.manifesto-content {}
+.manifesto-pull {
+  font-family:var(--serif); font-size:clamp(1.9rem,3.5vw,2.8rem);
+  line-height:1.25; letter-spacing:-0.02em; margin-bottom:40px;
+  color:var(--paper);
+}
+.manifesto-pull em { color:var(--teal); font-style:italic; }
+
+.manifesto-body p {
+  font-size:1.05rem; color:var(--paper-2); line-height:1.85; margin-bottom:20px; font-weight:300;
+}
+.manifesto-body p strong { color:var(--paper); font-weight:600; }
+.manifesto-body p:last-child { margin-bottom:0; }
+
+/* ─── RESULTS SHOWCASE ───────────────────────────────────────────────────── */
+.results { padding:100px 0; }
+.results-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; flex-wrap:wrap; gap:20px; }
+.results-tabs { display:flex; gap:4px; }
+.rtab {
+  padding:8px 18px; border-radius:8px; font-size:0.85rem; cursor:pointer;
+  border:1px solid rgba(255,255,255,0.07); color:var(--paper-2);
+  transition:all 0.15s; font-family:var(--sans); background:transparent;
+}
+.rtab.active { background:rgba(0,229,200,0.08); border-color:rgba(0,229,200,0.3); color:var(--teal); }
+
+.rpanel { display:none; }
+.rpanel.active { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+
+.rcard {
+  background:var(--ink-2); border:1px solid rgba(255,255,255,0.06);
+  border-radius:16px; overflow:hidden;
+}
+.rcard-head {
+  padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--mono); font-size:0.68rem; color:var(--paper-3);
+}
+.rcard-head .badge { background:rgba(0,229,200,0.1); color:var(--teal); padding:2px 8px; border-radius:4px; }
+.rcard-body { padding:12px; }
+.rcard-body img { width:100%; border-radius:8px; display:block; }
+.rcard-placeholder {
+  width:100%; aspect-ratio:16/10; border-radius:8px;
+  background:linear-gradient(135deg,#070c14,#0d1825);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; color:var(--paper-3); font-family:var(--mono); font-size:0.75rem;
+}
+.rcard-placeholder .ico { font-size:2.2rem; opacity:0.35; }
+.rmetrics { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:rgba(255,255,255,0.05); }
+.rm { padding:14px 16px; background:var(--ink-2); text-align:center; }
+.rm-v { font-family:var(--mono); font-size:1.1rem; font-weight:600; color:var(--teal); }
+.rm-l { font-size:0.68rem; color:var(--paper-3); margin-top:3px; }
+
+/* ─── FEATURES ───────────────────────────────────────────────────────────── */
+.features { padding:100px 0; }
+.features-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.05); border-radius:16px; overflow:hidden; }
+.fcard { padding:32px 28px; background:var(--ink-2); transition:background 0.3s; }
+.fcard:hover { background:var(--ink-3); }
+.fcard-num { font-family:var(--mono); font-size:0.65rem; color:var(--paper-4); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:20px; }
+.fcard-icon { font-size:1.6rem; margin-bottom:14px; display:block; }
+.fcard h3 { font-size:1rem; font-weight:600; margin-bottom:10px; line-height:1.4; }
+.fcard p { font-size:0.875rem; color:var(--paper-2); line-height:1.7; }
+.fcard-tag { display:inline-block; margin-top:14px; font-family:var(--mono); font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--teal); }
+
+/* ─── HOW IT WORKS ───────────────────────────────────────────────────────── */
+.how { padding:100px 0; }
+.how-track {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:0;
+  position:relative; margin-top:60px;
+}
+.how-track::before {
+  content:''; position:absolute; top:28px; left:16%; right:16%; height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,200,0.3) 20%,rgba(0,229,200,0.3) 80%,transparent);
+}
+.hstep { padding:0 24px; text-align:center; }
+.hstep-num {
+  width:56px; height:56px; border-radius:50%; margin:0 auto 24px;
+  background:var(--ink-2); border:1px solid rgba(255,255,255,0.08);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:0.8rem; font-weight:600; color:var(--teal);
+  position:relative; z-index:2;
+}
+.hstep h3 { font-size:1rem; font-weight:600; margin-bottom:10px; }
+.hstep p { font-size:0.875rem; color:var(--paper-2); line-height:1.7; }
+
+/* ─── BUILDER ────────────────────────────────────────────────────────────── */
+.builder { padding:100px 0; }
+.builder-inner {
+  display:grid; grid-template-columns:1fr 360px; gap:80px; align-items:center;
+}
+.builder-tag { font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--teal); margin-bottom:16px; }
+.builder-h2 { font-family:var(--serif); font-size:clamp(2rem,3.5vw,2.8rem); letter-spacing:-0.025em; line-height:1.15; margin-bottom:24px; }
+.builder-body { font-size:1rem; color:var(--paper-2); line-height:1.85; margin-bottom:32px; font-weight:300; }
+.builder-sig { display:flex; align-items:center; gap:14px; }
+.sig-avatar {
+  width:48px; height:48px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,var(--teal),var(--blue));
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--serif); font-size:1.2rem; color:var(--ink);
+}
+.sig-name { font-weight:600; font-size:0.95rem; }
+.sig-role { font-size:0.78rem; color:var(--paper-2); margin-top:3px; }
+
+.builder-card {
+  background:var(--ink-2); border:1px solid rgba(255,255,255,0.07);
+  border-radius:16px; overflow:hidden;
+}
+.bc-head { padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.05); font-family:var(--mono); font-size:0.65rem; color:var(--paper-3); text-transform:uppercase; letter-spacing:0.1em; }
+.bc-stats { display:grid; grid-template-columns:1fr 1fr; }
+.bs { padding:22px 20px; border-right:1px solid rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.05); }
+.bs:nth-child(even) { border-right:none; }
+.bs:nth-child(3),.bs:nth-child(4) { border-bottom:none; }
+.bs-v { font-family:var(--serif); font-size:2rem; color:var(--teal); margin-bottom:4px; }
+.bs-l { font-size:0.75rem; color:var(--paper-3); line-height:1.4; }
+
+/* ─── CTA ────────────────────────────────────────────────────────────────── */
+.cta { padding:120px 0; }
+.cta-inner {
+  position:relative; border-radius:24px; padding:80px 64px; text-align:center; overflow:hidden;
+  background:linear-gradient(135deg,rgba(0,229,200,0.04) 0%,rgba(59,130,246,0.03) 50%,rgba(224,64,160,0.03) 100%);
+  border:1px solid rgba(0,229,200,0.1);
+}
+.cta-inner::before {
+  content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:600px; height:300px;
+  background:radial-gradient(ellipse at top,rgba(0,229,200,0.08),transparent 70%);
+  pointer-events:none;
+}
+.cta-eyebrow { font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--teal); margin-bottom:20px; position:relative; }
+.cta-h2 { font-family:var(--serif); font-size:clamp(2.2rem,4vw,3.2rem); letter-spacing:-0.03em; margin-bottom:16px; line-height:1.1; position:relative; }
+.cta-sub { font-size:1.05rem; color:var(--paper-2); margin-bottom:44px; max-width:460px; margin-left:auto; margin-right:auto; line-height:1.7; position:relative; }
+.cta-form { display:flex; gap:10px; max-width:440px; margin:0 auto 14px; position:relative; }
+.cta-form input {
+  flex:1; padding:14px 18px; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; color:var(--paper); font-family:var(--sans); font-size:0.95rem; outline:none;
+  transition:border-color 0.2s;
+}
+.cta-form input::placeholder { color:var(--paper-3); }
+.cta-form input:focus { border-color:rgba(0,229,200,0.4); }
+.cta-form button {
+  padding:14px 26px; background:var(--teal); color:var(--ink);
+  font-family:var(--sans); font-size:0.95rem; font-weight:700;
+  border:none; border-radius:10px; cursor:pointer; white-space:nowrap; transition:all 0.2s;
+}
+.cta-form button:hover { box-shadow:0 8px 32px rgba(0,229,200,0.4); transform:translateY(-1px); }
+.cta-fine { font-size:0.8rem; color:var(--paper-3); position:relative; }
+.cta-fine a { color:var(--teal); text-decoration:none; }
+.form-ok { display:none; background:rgba(0,229,200,0.07); border:1px solid rgba(0,229,200,0.2); border-radius:10px; padding:14px 20px; color:var(--teal); font-weight:500; max-width:440px; margin:0 auto 14px; position:relative; }
+
+/* ─── FOOTER ─────────────────────────────────────────────────────────────── */
+footer {
+  padding:32px 0; border-top:1px solid rgba(255,255,255,0.05);
+}
+footer .wrap { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.footer-logo { font-family:var(--serif); font-size:1.1rem; color:var(--paper-2); }
+.footer-logo em { color:var(--teal); font-style:normal; }
+footer nav-f { display:flex; gap:20px; }
+footer p { font-size:0.78rem; color:var(--paper-3); }
+footer a { color:var(--paper-2); text-decoration:none; transition:color 0.2s; }
+footer a:hover { color:var(--teal); }
+
+/* ─── SECTION HEADER ─────────────────────────────────────────────────────── */
+.sh { margin-bottom:56px; }
+.sh-tag { font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--teal); margin-bottom:14px; }
+.sh-h2 { font-family:var(--serif); font-size:clamp(2rem,3.8vw,2.9rem); letter-spacing:-0.025em; line-height:1.12; }
+.sh-sub { font-size:1rem; color:var(--paper-2); max-width:520px; line-height:1.75; margin-top:12px; }
+
+/* ─── SCROLL REVEAL ──────────────────────────────────────────────────────── */
+.reveal { opacity:0; transform:translateY(28px); transition:opacity 0.7s ease, transform 0.7s ease; }
+.reveal.in { opacity:1; transform:translateY(0); }
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media(max-width:960px){
+  .hero-inner{grid-template-columns:1fr;gap:60px}
+  .hero-panel{max-width:440px}
+  .manifesto-inner{grid-template-columns:1fr;gap:40px}
+  .manifesto-index{position:static}
+  .builder-inner{grid-template-columns:1fr;gap:48px}
+  .features-grid{grid-template-columns:1fr 1fr}
+  .rpanel.active{grid-template-columns:1fr}
+  .how-track{grid-template-columns:1fr;gap:40px}
+  .how-track::before{display:none}
+}
+@media(max-width:640px){
+  .wrap{padding:0 20px}
+  .features-grid{grid-template-columns:1fr}
+  .hero-h1{font-size:2.8rem}
+  .cta-inner{padding:48px 24px}
+  .cta-form{flex-direction:column}
+  .nav-r a:not(.nav-btn):not(.nav-hi){display:none}
+  .rmetrics{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav id="nav">
+  <a href="#" class="nav-logo">
+    <span class="nav-logo-dot"></span>
+    Segmen<em>tum</em>
+  </a>
+  <div class="nav-r">
+    <a href="#why">Why</a>
+    <a href="#features">Features</a>
+    <a href="https://github.com/teromaxmcpe-afk/Segmentum" target="_blank">GitHub</a>
+    <a href="/analyse" class="nav-hi">Try Demo →</a>
+    <a href="#waitlist" class="nav-btn">Join Waitlist</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <!-- Animated SVG cell field -->
+  <div class="hero-canvas">
+    <svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="cg1" cx="50%" cy="50%"><stop offset="0%" stop-color="#00e5c8" stop-opacity="0.15"/><stop offset="100%" stop-color="#00e5c8" stop-opacity="0"/></radialGradient>
+        <radialGradient id="cg2" cx="50%" cy="50%"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.12"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></radialGradient>
+        <radialGradient id="cg3" cx="50%" cy="50%"><stop offset="0%" stop-color="#e040a0" stop-opacity="0.1"/><stop offset="100%" stop-color="#e040a0" stop-opacity="0"/></radialGradient>
+      </defs>
+      <!-- Large cell outlines suggesting microscopy -->
+      <ellipse cx="180" cy="200" rx="120" ry="140" fill="none" stroke="#00e5c8" stroke-width="0.8" opacity="0.3"><animate attributeName="rx" values="120;128;120" dur="8s" repeatCount="indefinite"/></ellipse>
+      <circle cx="180" cy="195" r="55" fill="url(#cg2)" opacity="0.6"><animate attributeName="r" values="55;60;55" dur="8s" repeatCount="indefinite"/></circle>
+      <ellipse cx="380" cy="520" rx="160" ry="130" fill="none" stroke="#3b82f6" stroke-width="0.8" opacity="0.2"><animate attributeName="ry" values="130;140;130" dur="11s" repeatCount="indefinite"/></ellipse>
+      <circle cx="375" cy="515" r="65" fill="url(#cg2)" opacity="0.4"/>
+      <ellipse cx="1100" cy="150" rx="100" ry="120" fill="none" stroke="#e040a0" stroke-width="0.8" opacity="0.2"/>
+      <circle cx="1095" cy="148" r="44" fill="url(#cg3)" opacity="0.5"/>
+      <ellipse cx="1300" cy="600" rx="140" ry="110" fill="none" stroke="#00e5c8" stroke-width="0.8" opacity="0.25"><animate attributeName="rx" values="140;150;140" dur="9s" repeatCount="indefinite"/></ellipse>
+      <circle cx="1296" cy="597" r="52" fill="url(#cg1)" opacity="0.5"/>
+      <ellipse cx="700" cy="780" rx="90" ry="100" fill="none" stroke="#3b82f6" stroke-width="0.6" opacity="0.15"/>
+      <ellipse cx="900" cy="350" rx="75" ry="85" fill="none" stroke="#00e5c8" stroke-width="0.5" opacity="0.18"/>
+      <!-- Small dots suggesting cell debris / context -->
+      <circle cx="550" cy="120" r="12" fill="none" stroke="#00e5c8" stroke-width="0.5" opacity="0.2"/>
+      <circle cx="750" cy="450" r="18" fill="none" stroke="#e040a0" stroke-width="0.5" opacity="0.15"/>
+      <circle cx="1180" cy="400" r="14" fill="none" stroke="#3b82f6" stroke-width="0.5" opacity="0.2"/>
+      <!-- Scan line effect -->
+      <line x1="0" y1="0" x2="1400" y2="0" stroke="#00e5c8" stroke-width="0.5" opacity="0.2">
+        <animate attributeName="y1" values="0;900;0" dur="12s" repeatCount="indefinite"/>
+        <animate attributeName="y2" values="0;900;0" dur="12s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.2;0;0.2" dur="12s" repeatCount="indefinite"/>
+      </line>
+    </svg>
+  </div>
+
+  <div class="wrap">
+    <div class="hero-inner">
+      <div>
+        <a href="/analyse" class="hero-badge">Live Beta — Try it now ↗</a>
+        <h1 class="hero-h1">
+          <span class="l1">From raw</span>
+          <span class="l2">microscopy to</span>
+          <span class="l3">results in minutes.</span>
+        </h1>
+        <p class="hero-sub">Upload any image. An intelligent pipeline detects what you're looking at, picks the right model, and hands you back clean masks and publication-ready figures. No code. No setup. No guesswork.</p>
+        <div class="hero-btns">
+          <a href="/analyse" class="btn btn-primary">🔬 Try the demo</a>
+          <a href="#waitlist" class="btn btn-ghost">Get early access</a>
+        </div>
+        <div class="hero-proof">
+          <div class="proof-stat">
+            <div class="proof-num">&lt;1s</div>
+            <div class="proof-lbl">Typical runtime</div>
+          </div>
+          <div class="proof-divider"></div>
+          <div class="proof-stat">
+            <div class="proof-num">3</div>
+            <div class="proof-lbl">Backends integrated</div>
+          </div>
+          <div class="proof-divider"></div>
+          <div class="proof-stat">
+            <div class="proof-num">0</div>
+            <div class="proof-lbl">Lines of code needed</div>
+          </div>
+          <div class="proof-divider"></div>
+          <div class="proof-stat">
+            <div class="proof-num">Free</div>
+            <div class="proof-lbl">For academic labs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Instrument panel -->
+      <div class="hero-panel">
+        <div class="panel-top">
+          <div class="pdot"></div><div class="pdot"></div><div class="pdot"></div>
+          <span class="panel-filename">MDCK_cyst_48h.tif · auto → cyto3</span>
+        </div>
+        <div class="panel-body">
+          <div class="panel-img">
+            <span class="panel-img-label">Raw</span>
+            <div class="raw-cell r1"><div class="rn"></div></div>
+            <div class="raw-cell r2"><div class="rn"></div></div>
+            <div class="raw-cell r3"><div class="rn"></div></div>
+            <div class="raw-cell r4"><div class="rn"></div></div>
+            <div class="raw-cell r5"><div class="rn"></div></div>
+            <div class="raw-cell r6"></div>
+          </div>
+          <div class="panel-img">
+            <span class="panel-img-label">Segmented</span>
+            <div class="seg-cell s1"><span class="slbl">C1</span></div>
+            <div class="seg-cell s2"><span class="slbl">C2</span></div>
+            <div class="seg-cell s3"><span class="slbl">C3</span></div>
+            <div class="seg-cell s4"><span class="slbl">C4</span></div>
+            <div class="seg-cell s5"><span class="slbl">C5</span></div>
+            <div class="seg-cell s6"><span class="slbl">C6</span></div>
+          </div>
+        </div>
+        <div class="panel-metrics">
+          <div class="pm"><div class="pm-v">7</div><div class="pm-l">Cells detected</div></div>
+          <div class="pm"><div class="pm-v">0.7s</div><div class="pm-l">Runtime</div></div>
+          <div class="pm"><div class="pm-v">2,847</div><div class="pm-l">Avg vol µm³</div></div>
+          <div class="pm"><div class="pm-v">GPU</div><div class="pm-l">Hardware</div></div>
+        </div>
+        <div class="panel-bar">
+          <span class="pb-label">model</span>
+          <span class="pb-pill">Cellpose · cyto3 · RTX 3070 Ti</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Filmstrip -->
+<section class="filmstrip-section">
+  <div class="filmstrip-label">Real results</div>
+  <div class="filmstrip-outer">
+    <div class="filmstrip-track" id="filmstrip">
+      <div class="film-card">
+        <div class="film-header"><span>HeLa cells · RGB</span><span class="film-badge">cyto3</span></div>
+        <div class="film-img">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/overlay.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML+='<span>Overlay · 182 cells</span>'" alt="HeLa overlay">
+        </div>
+        <div class="film-footer"><span class="film-count">182 cells</span><span class="film-time">0.7s</span></div>
+      </div>
+      <div class="film-card">
+        <div class="film-header"><span>Dense nuclei · Hoechst</span><span class="film-badge">nuclei</span></div>
+        <div class="film-img">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/nuclei.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML+='<span>Overlay · ~80 nuclei</span>'" alt="Nuclei overlay">
+        </div>
+        <div class="film-footer"><span class="film-count">~80 nuclei</span><span class="film-time">0.4s</span></div>
+      </div>
+      <div class="film-card">
+        <div class="film-header"><span>Bacteria · phase</span><span class="film-badge">cyto3</span></div>
+        <div class="film-img">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/bacteria.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML+='<span>Overlay · ~60 bacteria</span>'" alt="Bacteria overlay">
+        </div>
+        <div class="film-footer"><span class="film-count">~60 bacteria</span><span class="film-time">0.3s</span></div>
+      </div>
+      <div class="film-card">
+        <div class="film-header"><span>MDCK cysts · 3D</span><span class="film-badge">cyto3</span></div>
+        <div class="film-img"><span>Coming soon</span></div>
+        <div class="film-footer"><span class="film-count">— cysts</span><span class="film-time">—</span></div>
+      </div>
+      <div class="film-card">
+        <div class="film-header"><span>Organoids · confocal</span><span class="film-badge">cyto3</span></div>
+        <div class="film-img"><span>Coming soon</span></div>
+        <div class="film-footer"><span class="film-count">— organoids</span><span class="film-time">—</span></div>
+      </div>
+      <div class="film-card">
+        <div class="film-header"><span>Custom model · fine-tuned</span><span class="film-badge">custom</span></div>
+        <div class="film-img"><span>Coming soon</span></div>
+        <div class="film-footer"><span class="film-count">— objects</span><span class="film-time">—</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Manifesto / Why -->
+<section class="manifesto" id="why">
+  <div class="wrap">
+    <div class="manifesto-inner">
+      <div class="manifesto-index">
+        <div>01 — Why Segmentum</div>
+        <ul>
+          <li class="active">The problem</li>
+          <li class="active">The fix</li>
+          <li class="active">The difference</li>
+        </ul>
+      </div>
+      <div class="manifesto-content reveal">
+        <p class="manifesto-pull">Microscopy has always been the bottleneck. <em>The analysis layer has never kept up with the imaging.</em></p>
+        <div class="manifesto-body">
+          <p>You spend weeks optimising your staining, days at the microscope collecting beautiful data, and then hours, sometimes days more, wrestling with ImageJ macros, Cellpose installations, Python environments that break, and parameter tuning that feels more like guesswork than science. Every lab reinvents the same wheel. Every student learns the same frustrating workarounds.</p>
+          <p>Segmentum fixes that. Upload any image, any format, any microscope, any cell type, and within seconds an intelligent pipeline reads your data, figures out what you're looking at, picks the right segmentation model, and hands you back <strong>clean masks, quantified measurements, and publication-ready figures</strong>. No installation. No coding. No parameter hunting.</p>
+          <p>The whole system is built by someone who does this exact analysis for their own thesis, which means it's designed around how biologists actually work, not how engineers imagine they do.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section class="results" id="results">
+  <div class="wrap">
+    <div class="results-head">
+      <div class="sh">
+        <div class="sh-tag">Real Results</div>
+        <h2 class="sh-h2">See what it produces.</h2>
+        <p class="sh-sub">Generated in under 1 second each. Zero manual parameter tuning.</p>
+      </div>
+      <div class="results-tabs">
+        <button class="rtab active" onclick="showR('cells',this)">HeLa cells</button>
+        <button class="rtab" onclick="showR('nuclei',this)">Nuclei</button>
+        <button class="rtab" onclick="showR('bacteria',this)">Bacteria</button>
+      </div>
+    </div>
+
+    <div class="rpanel active" id="r-cells">
+      <div class="rcard">
+        <div class="rcard-head">Raw input <span class="badge">RGB · 467×349 · 8-bit</span></div>
+        <div class="rcard-body">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/raw_cells.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🔬</div>HeLa cells · DAPI + phalloidin + GFP</div>'"
+               alt="Raw HeLa cells">
+        </div>
+      </div>
+      <div>
+        <div class="rcard">
+          <div class="rcard-head">Segmented · Cellpose cyto3 <span class="badge">182 cells · 0.7s</span></div>
+          <div class="rcard-body">
+            <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/overlay.png"
+                 onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🎨</div>Coloured overlay · RTX 3070 Ti</div>'"
+                 alt="HeLa overlay">
+          </div>
+        </div>
+        <div class="rmetrics">
+          <div class="rm"><div class="rm-v">182</div><div class="rm-l">Cells</div></div>
+          <div class="rm"><div class="rm-v">0.7s</div><div class="rm-l">Runtime</div></div>
+          <div class="rm"><div class="rm-v">890</div><div class="rm-l">Mean area px²</div></div>
+          <div class="rm"><div class="rm-v">0.82</div><div class="rm-l">Circularity</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rpanel" id="r-nuclei">
+      <div class="rcard">
+        <div class="rcard-head">Raw input <span class="badge">Grayscale · Hoechst</span></div>
+        <div class="rcard-body">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/raw_nuclei.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🔬</div>Dense U2OS nuclei · Hoechst stain</div>'"
+               alt="Raw nuclei">
+        </div>
+      </div>
+      <div>
+        <div class="rcard">
+          <div class="rcard-head">Segmented · Cellpose nuclei <span class="badge">~80 nuclei · 0.4s</span></div>
+          <div class="rcard-body">
+            <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/nuclei.png"
+                 onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🎨</div>Coloured overlay</div>'"
+                 alt="Nuclei overlay">
+          </div>
+        </div>
+        <div class="rmetrics">
+          <div class="rm"><div class="rm-v">~80</div><div class="rm-l">Nuclei</div></div>
+          <div class="rm"><div class="rm-v">0.4s</div><div class="rm-l">Runtime</div></div>
+          <div class="rm"><div class="rm-v">0.91</div><div class="rm-l">Circularity</div></div>
+          <div class="rm"><div class="rm-v">16px</div><div class="rm-l">Mean diam.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rpanel" id="r-bacteria">
+      <div class="rcard">
+        <div class="rcard-head">Raw input <span class="badge">Fluorescence · phase</span></div>
+        <div class="rcard-body">
+          <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/raw_bacteria.png"
+               onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🔬</div>Bacteria · phase contrast</div>'"
+               alt="Raw bacteria">
+        </div>
+      </div>
+      <div>
+        <div class="rcard">
+          <div class="rcard-head">Segmented · Cellpose cyto3 <span class="badge">~60 cells · 0.3s</span></div>
+          <div class="rcard-body">
+            <img src="https://raw.githubusercontent.com/teromaxmcpe-afk/Segmentum/main/screenshots/bacteria.png"
+                 onerror="this.style.display='none';this.parentElement.innerHTML='<div class=\'rcard-placeholder\'><div class=\'ico\'>🎨</div>Individual bacteria separated</div>'"
+                 alt="Bacteria overlay">
+          </div>
+        </div>
+        <div class="rmetrics">
+          <div class="rm"><div class="rm-v">~60</div><div class="rm-l">Bacteria</div></div>
+          <div class="rm"><div class="rm-v">0.3s</div><div class="rm-l">Runtime</div></div>
+          <div class="rm"><div class="rm-v">0.45</div><div class="rm-l">Eccentricity</div></div>
+          <div class="rm"><div class="rm-v">8px</div><div class="rm-l">Mean diam.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:40px">
+      <a href="/analyse" class="btn btn-primary">Analyse your own images →</a>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="sh reveal">
+      <div class="sh-tag">Features</div>
+      <h2 class="sh-h2">Everything you need.<br>Nothing you don't.</h2>
+    </div>
+    <div class="features-grid reveal">
+      <div class="fcard">
+        <div class="fcard-num">01</div>
+        <span class="fcard-icon">🧠</span>
+        <h3>Intelligent model selection</h3>
+        <p>Reads your image, identifies object type and density, picks the right backend — Cellpose, StarDist, or PlantSeg — and sets parameters automatically.</p>
+        <span class="fcard-tag">Auto-routing</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-num">02</div>
+        <span class="fcard-icon">🔬</span>
+        <h3>Any microscope, any format</h3>
+        <p>Upload .tif, .czi, .nd2, .lif, or .ome.tiff. Auto-detects channels, voxel sizes, bit depth, and time points from metadata.</p>
+        <span class="fcard-tag">Format-agnostic</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-num">03</div>
+        <span class="fcard-icon">📊</span>
+        <h3>Publication-ready output</h3>
+        <p>uint16 TIF masks for FIJI and napari. CSV measurements. Morphology plots. All formatted for your manuscript.</p>
+        <span class="fcard-tag">Export-ready</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-num">04</div>
+        <span class="fcard-icon">⚡</span>
+        <h3>GPU-accelerated, zero setup</h3>
+        <p>No CUDA drivers. No conda environments. No "it worked on my machine." Upload and get results in under a second.</p>
+        <span class="fcard-tag">Cloud GPU</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-num">05</div>
+        <span class="fcard-icon">🎯</span>
+        <h3>Fine-tune on your data</h3>
+        <p>Upload 10 corrected masks. Fine-tune a model trained specifically on your cell type, staining, and microscope. No ML expertise needed.</p>
+        <span class="fcard-tag">Custom models</span>
+      </div>
+      <div class="fcard">
+        <div class="fcard-num">06</div>
+        <span class="fcard-icon">🎛️</span>
+        <h3>Biological language controls</h3>
+        <p>Override anything: backend, object type, diameter, sensitivity. Biological terms, not flow thresholds and probability cutoffs.</p>
+        <span class="fcard-tag">Intuitive overrides</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="how">
+  <div class="wrap">
+    <div class="sh reveal" style="text-align:center">
+      <div class="sh-tag">How It Works</div>
+      <h2 class="sh-h2">Three steps. That's it.</h2>
+    </div>
+    <div class="how-track reveal">
+      <div class="hstep">
+        <div class="hstep-num">01</div>
+        <h3>Upload your image</h3>
+        <p>Drag and drop any microscopy file. We auto-read channel count, dimensionality, and bit depth from metadata.</p>
+      </div>
+      <div class="hstep">
+        <div class="hstep-num">02</div>
+        <h3>Review the auto-plan</h3>
+        <p>The pipeline detects your object type, selects the best model, estimates diameter, and shows its reasoning. Override anything in one click.</p>
+      </div>
+      <div class="hstep">
+        <div class="hstep-num">03</div>
+        <h3>Download your results</h3>
+        <p>uint16 TIF masks, CSV measurements, morphology plots, and a coloured overlay — all in seconds, all ready for your manuscript.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stat strip -->
+<section style="padding:60px 0; border-top:1px solid rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.05);">
+  <div class="wrap">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.05);border-radius:14px;overflow:hidden;">
+      <div style="padding:32px 28px;background:var(--ink-2);text-align:center;">
+        <div style="font-family:var(--serif);font-size:2.4rem;color:var(--teal);margin-bottom:6px;">&lt;1s</div>
+        <div style="font-size:0.8rem;color:var(--paper-3);line-height:1.4;">Typical segmentation<br>runtime on GPU</div>
+      </div>
+      <div style="padding:32px 28px;background:var(--ink-2);text-align:center;">
+        <div style="font-family:var(--serif);font-size:2.4rem;color:var(--teal);margin-bottom:6px;">3</div>
+        <div style="font-size:0.8rem;color:var(--paper-3);line-height:1.4;">Segmentation backends<br>integrated</div>
+      </div>
+      <div style="padding:32px 28px;background:var(--ink-2);text-align:center;">
+        <div style="font-family:var(--serif);font-size:2.4rem;color:var(--teal);margin-bottom:6px;">0</div>
+        <div style="font-size:0.8rem;color:var(--paper-3);line-height:1.4;">Lines of code needed<br>by the user</div>
+      </div>
+      <div style="padding:32px 28px;background:var(--ink-2);text-align:center;">
+        <div style="font-family:var(--serif);font-size:2.4rem;color:var(--teal);margin-bottom:6px;">Free</div>
+        <div style="font-size:0.8rem;color:var(--paper-3);line-height:1.4;">For academic labs<br>during beta</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="waitlist">
+  <div class="wrap">
+    <div class="cta-inner reveal">
+      <div class="cta-eyebrow">Early Access</div>
+      <h2 class="cta-h2">Stop wrestling with code.<br>Start publishing faster.</h2>
+      <p class="cta-sub">Join the waitlist. Free for academic labs during beta. No credit card needed.</p>
+      <form class="cta-form" id="wlForm">
+        <input type="email" name="email" placeholder="you@university.edu" required>
+        <input type="hidden" name="_subject" value="Segmentum Waitlist">
+        <input type="hidden" name="source" value="cta">
+        <button type="submit">Get Early Access</button>
+      </form>
+      <div class="form-ok" id="wlOk">You're on the list — we'll reach out soon. 🎉</div>
+      <p class="cta-fine">Or <a href="/analyse">try the live demo right now →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="wrap">
+    <span class="footer-logo">Segmen<em>tum</em></span>
+    <p>Built by scientists, for scientists &nbsp;·&nbsp; <a href="https://github.com/teromaxmcpe-afk/Segmentum" target="_blank">GitHub</a> &nbsp;·&nbsp; <a href="mailto:hello@segmentum.bio">hello@segmentum.bio</a> &nbsp;·&nbsp; © 2026</p>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const navEl = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  navEl.classList.toggle('scrolled', window.scrollY > 40);
+}, {passive:true});
+
+// ── Seamless filmstrip loop ───────────────────────────────────────────────────
+(function() {
+  const track = document.getElementById('filmstrip');
+  if (!track) return;
+
+  // Clone all original cards and append — gives us a perfect duplicate set
+  const originals = Array.from(track.children);
+  originals.forEach(card => {
+    track.appendChild(card.cloneNode(true));
+  });
+
+  // Measure the width of one full set (originals only)
+  // We scroll until we've moved exactly that width, then snap back to 0
+  let pos = 0;
+  const speed = 0.6; // px per frame — adjust for faster/slower
+  let setWidth = 0;
+  let rafId;
+
+  function getSetWidth() {
+    // Sum widths of original cards + gaps
+    const gap = 16;
+    let w = 0;
+    originals.forEach(card => { w += card.offsetWidth + gap; });
+    return w;
+  }
+
+  function animate() {
+    if (setWidth === 0) setWidth = getSetWidth();
+    pos += speed;
+    if (pos >= setWidth) pos -= setWidth; // seamless snap
+    track.style.transform = `translateX(-${pos}px)`;
+    rafId = requestAnimationFrame(animate);
+  }
+
+  // Recalculate on resize
+  window.addEventListener('resize', () => { setWidth = 0; }, {passive:true});
+
+  animate();
+})();
+
+// Waitlist form
+document.getElementById('wlForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  try {
+    const res = await fetch('https://formspree.io/f/mkoqlrey', {
+      method:'POST', body:new FormData(e.target), headers:{Accept:'application/json'}
+    });
+    if (res.ok) {
+      e.target.style.display='none';
+      document.getElementById('wlOk').style.display='block';
+    } else { btn.textContent='Try again'; btn.disabled=false; }
+  } catch { btn.textContent='Try again'; btn.disabled=false; }
+});
+
+// Results tabs
+function showR(id, btn) {
+  document.querySelectorAll('.rpanel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.rtab').forEach(b => b.classList.remove('active'));
+  document.getElementById('r-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Scroll reveal
+const ro = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('in'); });
+}, {threshold:0.08, rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+</script>
+</body>
+</html>
