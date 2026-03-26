@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://compute.segmentum.bio https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://formspree.io; connect-src 'self' https://compute.segmentum.bio https://formspree.io; img-src 'self' data: blob: https://raw.githubusercontent.com;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Segmentum - Analyse</title>
+<title>Segmentum — Analyse</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -63,7 +63,7 @@
   .reasoning-list { list-style:none; }
   .reasoning-list li { padding:6px 0; border-bottom:1px solid var(--border); font-size:12px; color:var(--muted); display:flex; gap:8px; align-items:flex-start; }
   .reasoning-list li:last-child { border-bottom:none; }
-  .reasoning-list li::before { content:'->'; color:var(--cyan); flex-shrink:0; }
+  .reasoning-list li::before { content:'→'; color:var(--cyan); flex-shrink:0; }
   .backend-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); color:var(--blue); border-radius:6px; padding:4px 10px; font-family:var(--font-mono); font-size:12px; font-weight:500; margin-bottom:12px; }
   .confidence-bar { height:4px; border-radius:2px; background:var(--bg3); margin-top:10px; overflow:hidden; }
   .confidence-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--cyan),var(--blue)); transition:width 0.6s ease; }
@@ -149,20 +149,20 @@
   <a class="nav-logo" href="/">Segmentum</a>
   <div class="nav-status">
     <div class="status-dot" id="statusDot"></div>
-    <span id="statusText">checking compute...</span>
+    <span id="statusText">checking compute…</span>
   </div>
 </nav>
 
 <main>
   <h1>Analyse your <span>microscopy data</span></h1>
-  <p class="subtitle">Upload an image - auto-detection picks the best model, your GPU does the rest.</p>
+  <p class="subtitle">Upload an image — auto-detection picks the best model, your GPU does the rest.</p>
 
   <div class="upload-zone" id="dropZone">
     <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg">
     <div class="upload-icon">🔬</div>
     <h3>Drop your image here</h3>
     <p>or click to browse</p>
-    <div class="formats">.tif . .tiff . .png . .jpg</div>
+    <div class="formats">.tif · .tiff · .png · .jpg</div>
   </div>
 
   <div class="workspace hidden" id="workspace">
@@ -172,7 +172,7 @@
 
       <!-- Image profile -->
       <div class="card" id="profileCard">
-        <div class="card-header">Image Profile <span class="tag" id="profileTag">detecting...</span></div>
+        <div class="card-header">Image Profile <span class="tag" id="profileTag">detecting…</span></div>
         <div class="card-body">
           <div class="profile-grid" id="profileGrid"></div>
         </div>
@@ -180,15 +180,15 @@
 
       <!-- Segmentation plan -->
       <div class="card" id="planCard">
-        <div class="card-header">Segmentation Plan <span class="tag" id="confidenceTag">-</span></div>
+        <div class="card-header">Segmentation Plan <span class="tag" id="confidenceTag">–</span></div>
         <div class="card-body">
-          <div class="backend-badge" id="backendBadge">* detecting...</div>
+          <div class="backend-badge" id="backendBadge">⚙️ detecting…</div>
           <ul class="reasoning-list" id="reasoningList"></ul>
           <div class="confidence-bar"><div class="confidence-fill" id="confidenceFill" style="width:0%"></div></div>
 
           <!-- Override panel -->
           <div class="override-toggle" id="overrideToggle" onclick="toggleOverride()">
-            <span class="arrow">></span>
+            <span class="arrow">▶</span>
             <span>Override parameters</span>
           </div>
           <div class="override-panel" id="overridePanel">
@@ -211,21 +211,21 @@
               </div>
               <select id="backendSelect" onchange="updateBackendLabel()">
                 <option value="">Auto (recommended)</option>
-                <optgroup label="Foundation Models - best quality">
-                  <option value="cellsam|cellsam_vit_b">CellSAM - universal (bacteria/tissue/yeast/fluo)</option>
-                  <option value="microsam|vit_b_lm">MicroSAM - vit_b_lm (light microscopy)</option>
+                <optgroup label="Foundation Models — best quality">
+                  <option value="cellsam|cellsam_vit_b">CellSAM — universal (bacteria/tissue/yeast/fluo)</option>
+                  <option value="microsam|vit_b_lm">MicroSAM — vit_b_lm (light microscopy)</option>
                 </optgroup>
                 <optgroup label="Cellpose">
-                  <option value="cellpose|cpsam">Cellpose-SAM - v4 superhuman (upgrade to v4 first)</option>
-                  <option value="cellpose|cyto3">Cellpose - cyto3 (cells)</option>
-                  <option value="cellpose|nuclei">Cellpose - nuclei</option>
+                  <option value="cellpose|cpsam">Cellpose-SAM — v4 superhuman (upgrade to v4 first)</option>
+                  <option value="cellpose|cyto3">Cellpose — cyto3 (cells)</option>
+                  <option value="cellpose|nuclei">Cellpose — nuclei</option>
                 </optgroup>
                 <optgroup label="Specialist">
-                  <option value="omnipose|bact_omni">Omnipose - bacteria</option>
-                  <option value="stardist|2D_versatile_fluo">StarDist - round nuclei</option>
+                  <option value="omnipose|bact_omni">Omnipose — bacteria</option>
+                  <option value="stardist|2D_versatile_fluo">StarDist — round nuclei</option>
                 </optgroup>
                 <optgroup label="Fallback">
-                  <option value="threshold|otsu">Threshold - Otsu</option>
+                  <option value="threshold|otsu">Threshold — Otsu</option>
                 </optgroup>
               </select>
             </div>
@@ -254,14 +254,14 @@
       </div>
 
       <button class="run-btn hidden" id="runBtn" disabled>
-        <span>> Run Segmentation</span>
+        <span>▶ Run Segmentation</span>
       </button>
 
       <!-- Quality toggle -->
       <div class="hidden" id="qualityRow" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
         <div>
           <div style="font-size:13px;font-weight:500;">High quality mode</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">CellSAM foundation model . 3-8s . better results</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">CellSAM foundation model · 3-8s · better results</div>
         </div>
         <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;">
           <input type="checkbox" id="qualityToggle" style="opacity:0;width:0;height:0;">
@@ -289,7 +289,7 @@
               <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:6px;">RAW IMAGE</div>
               <div class="gt-drop" id="gtImageDrop">
                 <input type="file" id="gtImageInput" accept=".tif,.tiff,.png,.jpg">
-                <div style="font-size:1.2rem"></div>
+                <div style="font-size:1.2rem">🖼️</div>
                 <div style="font-size:12px;margin-top:4px;">Drop image</div>
               </div>
             </div>
@@ -304,13 +304,13 @@
           </div>
 
           <button class="dl-btn" id="gtUploadBtn" style="width:100%;margin-top:10px;" onclick="uploadGTPair()">
-            + Add pair
+            ＋ Add pair
           </button>
 
           <div class="gt-pairs" id="gtPairsDisplay"></div>
 
           <button class="train-btn hidden" id="trainBtn" onclick="startTraining()">
-             Fine-tune model on my data
+            🧠 Fine-tune model on my data
           </button>
           <div class="progress-label hidden" id="trainLabel"></div>
         </div>
@@ -358,24 +358,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-// Run health check immediately - before any other JS
-(async function() {
-  try {
-    const r = await fetch('https://compute.segmentum.bio/health');
-    const d = await r.json();
-    const dot  = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-    if (d.status === 'ok') {
-      dot.className  = 'status-dot online';
-      text.textContent = 'compute online . GPU ' + (d.gpu_available ? 'v' : 'x') + ' . ' + d.available_backends.join(', ');
-    }
-  } catch(e) {
-    document.getElementById('statusDot').className = 'status-dot offline';
-    document.getElementById('statusText').textContent = 'compute offline: ' + e.message;
-  }
-})();
-
-const API = 'https://compute.segmentum.bio';
+const API = window.location.hostname === 'compute.segmentum.bio'
+  ? 'https://compute.segmentum.bio'
+  : 'https://compute.segmentum.bio';
 
 // State
 let currentFile = null;
@@ -389,7 +374,7 @@ let selectedObjType = "auto";
 
 const $ = id => document.getElementById(id);
 
-// -- Log -----------------------------------------------------------------------
+// ── Log ───────────────────────────────────────────────────────────────────────
 function log(msg, type='') {
   const box = $('logBox');
   box.classList.remove('hidden');
@@ -401,7 +386,29 @@ function setProgress(pct) {
   $('progressFill').style.width = pct + '%';
 }
 
-// -- File handling -------------------------------------------------------------
+// ── Health check ──────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const r = await fetch(`${API}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    const d = await r.json();
+    if (d.status === 'ok') {
+      $('statusDot').className = 'status-dot online';
+      $('statusText').textContent =
+        `compute online · GPU ${d.gpu_available ? '✓' : '✗'} · ${d.available_backends.join(', ')}` +
+        (d.training_pairs > 0 ? ` · ${d.training_pairs} GT pairs` : '');
+    }
+  } catch {
+    $('statusDot').className = 'status-dot offline';
+    $('statusText').textContent = 'compute offline — start the server';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ── File handling ─────────────────────────────────────────────────────────────
 $('fileInput').addEventListener('change', e => handleFile(e.target.files[0]));
 const dz = $('dropZone');
 dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
@@ -418,34 +425,34 @@ async function handleFile(file) {
   $('logBox').innerHTML = '';
   $('runBtn').classList.add('hidden');
   $('resultsCard').classList.add('hidden');
-  $('profileTag').textContent = 'analysing...';
-  log(` ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'info');
+  $('profileTag').textContent = 'analysing…';
+  log(`📂 ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'info');
   await detectAndSuggest(file);
 }
 
-// -- Detect + Suggest ----------------------------------------------------------
+// ── Detect + Suggest ──────────────────────────────────────────────────────────
 async function detectAndSuggest(file) {
   try {
     const fd = new FormData();
     fd.append('file', file);
     setProgress(15);
-    log('-> Detecting image properties...');
+    log('→ Detecting image properties…');
     const profileRes = await fetch(`${API}/detect`, { method:'POST', body:fd });
     if (!profileRes.ok) throw new Error(await profileRes.text());
     currentProfile = await profileRes.json();
     renderProfile(currentProfile);
     setProgress(35);
-    log(`<span class="ok">v ${currentProfile.summary}</span>`);
+    log(`<span class="ok">✓ ${currentProfile.summary}</span>`);
 
     const fd2 = new FormData();
     fd2.append('file', file);
-    log('-> Selecting segmentation model...');
+    log('→ Selecting segmentation model…');
     const planRes = await fetch(`${API}/suggest`, { method:'POST', body:fd2 });
     if (!planRes.ok) throw new Error(await planRes.text());
     currentPlan = await planRes.json();
     renderPlan(currentPlan);
     setProgress(50);
-    log(`<span class="ok">v ${currentPlan.backend} (${currentPlan.model_name}) - confidence: ${currentPlan.confidence}</span>`);
+    log(`<span class="ok">✓ ${currentPlan.backend} (${currentPlan.model_name}) — confidence: ${currentPlan.confidence}</span>`);
 
     $('runBtn').classList.remove('hidden');
     $('runBtn').disabled = false;
@@ -454,19 +461,19 @@ async function detectAndSuggest(file) {
     $('gtSection').classList.remove('hidden');
     $('progressBar').classList.add('hidden');
   } catch(e) {
-    log(`<span class="err">x ${e.message}</span>`);
+    log(`<span class="err">✗ ${e.message}</span>`);
     $('progressBar').classList.add('hidden');
   }
 }
 
-// -- Render profile ------------------------------------------------------------
+// ── Render profile ────────────────────────────────────────────────────────────
 function renderProfile(p) {
   $('profileTag').textContent = p.object_type;
   $('profileGrid').innerHTML = [
-    { label:'Dimensions',  value: p.is_3d ? `3D . ${p.n_z}z` : '2D',          cls:'cyan' },
+    { label:'Dimensions',  value: p.is_3d ? `3D · ${p.n_z}z` : '2D',          cls:'cyan' },
     { label:'Channels',    value: p.n_channels,                                  cls:'' },
     { label:'Bit depth',   value: p.bit_depth + '-bit',                          cls:'' },
-    { label:'Size',        value: `${p.width}x${p.height}`,                      cls:'' },
+    { label:'Size',        value: `${p.width}×${p.height}`,                      cls:'' },
     { label:'Object type', value: p.object_type,                                 cls:'magenta' },
     { label:'Density',     value: p.object_density,                              cls:'' },
     { label:'Est. diam.',  value: p.estimated_diameter_px.toFixed(0) + ' px',   cls:'cyan' },
@@ -480,15 +487,15 @@ function renderProfile(p) {
   }
 }
 
-// -- Render plan ---------------------------------------------------------------
+// ── Render plan ───────────────────────────────────────────────────────────────
 function renderPlan(p) {
-  $('backendBadge').textContent = `* ${p.backend} . ${p.model_name}`;
+  $('backendBadge').textContent = `⚙️ ${p.backend} · ${p.model_name}`;
   $('confidenceTag').textContent = p.confidence;
   $('reasoningList').innerHTML = p.reasoning.map(r => `<li>${r}</li>`).join('');
   $('confidenceFill').style.width = ({high:90, medium:55, low:25}[p.confidence] || 50) + '%';
 }
 
-// -- Override controls ---------------------------------------------------------
+// ── Override controls ─────────────────────────────────────────────────────────
 function toggleOverride() {
   $('overrideToggle').classList.toggle('open');
   $('overridePanel').classList.toggle('open');
@@ -511,18 +518,18 @@ function updateSensitivityLabel() {
   $('sensitivityLabel').textContent = v < 33 ? 'strict' : v < 66 ? 'medium' : 'sensitive';
 }
 
-// -- Run segmentation ----------------------------------------------------------
+// ── Run segmentation ──────────────────────────────────────────────────────────
 $('runBtn').addEventListener('click', runSegmentation);
 
 async function runSegmentation() {
   $('runBtn').disabled = true;
-  $('runBtn').innerHTML = '<div class="spinner"></div> Running on GPU...';
+  $('runBtn').innerHTML = '<div class="spinner"></div> Running on GPU…';
   $('logBox').classList.remove('hidden');
   $('progressBar').classList.remove('hidden');
 
   try {
     setProgress(10);
-    log('-> Sending to compute server...', 'info');
+    log('→ Sending to compute server…', 'info');
 
     const fd = new FormData();
     fd.append('file', currentFile);
@@ -551,25 +558,25 @@ async function runSegmentation() {
     currentResult = await res.json();
 
     setProgress(100);
-    log(`<span class="ok">v ${currentResult.n_objects} objects . ${currentResult.runtime_seconds.toFixed(1)}s . ${currentResult.backend_used} (${currentResult.model_used})</span>`);
+    log(`<span class="ok">✓ ${currentResult.n_objects} objects · ${currentResult.runtime_seconds.toFixed(1)}s · ${currentResult.backend_used} (${currentResult.model_used})</span>`);
     renderResults(currentResult);
 
   } catch(e) {
-    log(`<span class="err">x ${e.message}</span>`);
+    log(`<span class="err">✗ ${e.message}</span>`);
   } finally {
     $('runBtn').disabled = false;
-    $('runBtn').innerHTML = '<span>> Run Again</span>';
+    $('runBtn').innerHTML = '<span>▶ Run Again</span>';
     setTimeout(() => $('progressBar').classList.add('hidden'), 1200);
   }
 }
 
-// -- Render results ------------------------------------------------------------
+// ── Render results ────────────────────────────────────────────────────────────
 function renderResults(r) {
   $('resultsCard').classList.remove('hidden');
   const s = r.plot_data.summary_stats || {};
   $('statsRow').innerHTML = [
     { num: r.n_objects,                               lbl: 'Objects' },
-    { num: s.mean_area ? s.mean_area.toFixed(0) : '-', lbl: 'Mean area px2' },
+    { num: s.mean_area ? s.mean_area.toFixed(0) : '–', lbl: 'Mean area px²' },
     { num: r.runtime_seconds.toFixed(1) + 's',        lbl: 'Runtime' },
     { num: r.backend_used,                             lbl: 'Backend' },
   ].map(c => `<div class="stat-chip"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>`).join('');
@@ -580,13 +587,13 @@ function renderResults(r) {
   $('warnList').innerHTML = (r.warnings||[]).map(w => `<div class="warn-item">${w}</div>`).join('');
 
   $('dlRow').innerHTML = `
-    <button class="dl-btn tif" onclick="downloadMasksTIF()">Download Masks.tif (uint16)</button>
-    <button class="dl-btn" onclick="downloadCSV()"> CSV</button>
-    <button class="dl-btn" onclick="downloadOverlay()"> Overlay</button>
+    <button class="dl-btn tif" onclick="downloadMasksTIF()">⬇ Masks.tif (uint16)</button>
+    <button class="dl-btn" onclick="downloadCSV()">📊 CSV</button>
+    <button class="dl-btn" onclick="downloadOverlay()">🖼️ Overlay</button>
   `;
 }
 
-// -- Charts --------------------------------------------------------------------
+// ── Charts ────────────────────────────────────────────────────────────────────
 const cDefaults = {
   responsive:true, maintainAspectRatio:false,
   plugins:{legend:{display:false}},
@@ -618,12 +625,12 @@ function renderScatter(data) {
     data:{datasets:[{data:points, backgroundColor:'rgba(224,64,160,0.5)', borderColor:'#e040a0', borderWidth:1, pointRadius:4}]},
     options:{...cDefaults, scales:{
       x:{...cDefaults.scales.x, title:{display:true,text:'Eccentricity',color:'#6b7a8d'}},
-      y:{...cDefaults.scales.y, title:{display:true,text:'Area (px2)',color:'#6b7a8d'}},
+      y:{...cDefaults.scales.y, title:{display:true,text:'Area (px²)',color:'#6b7a8d'}},
     }}
   });
 }
 
-// -- Downloads -----------------------------------------------------------------
+// ── Downloads ─────────────────────────────────────────────────────────────────
 function downloadMasksTIF() {
   if (!currentResult?.masks_tif_b64) return;
   dlBlob(b64toBlob(currentResult.masks_tif_b64, 'image/tiff'), 'segmentum_masks.tif');
@@ -648,7 +655,7 @@ function dlBlob(blob, name) {
   a.href = URL.createObjectURL(blob); a.download = name; a.click();
 }
 
-// -- Tabs ----------------------------------------------------------------------
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -658,7 +665,7 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 
-// -- Ground truth upload -------------------------------------------------------
+// ── Ground truth upload ───────────────────────────────────────────────────────
 let pendingGTImage = null, pendingGTMask = null;
 
 $('gtImageInput').addEventListener('change', e => {
@@ -676,7 +683,7 @@ async function uploadGTPair() {
     return;
   }
   const btn = $('gtUploadBtn');
-  btn.textContent = 'Uploading...';
+  btn.textContent = 'Uploading…';
   btn.disabled = true;
   try {
     const fd = new FormData();
@@ -688,11 +695,11 @@ async function uploadGTPair() {
     gtPairs.push({ id: d.pair_id, img: pendingGTImage.name, mask: pendingGTMask.name });
     pendingGTImage = null; pendingGTMask = null;
     renderGTPairs(d.n_pairs);
-    log(`<span class="ok">v GT pair uploaded (${d.n_pairs}/10) - ${d.message}</span>`);
+    log(`<span class="ok">✓ GT pair uploaded (${d.n_pairs}/10) — ${d.message}</span>`);
   } catch(e) {
-    log(`<span class="err">x GT upload failed: ${e.message}</span>`);
+    log(`<span class="err">✗ GT upload failed: ${e.message}</span>`);
   } finally {
-    btn.textContent = '+ Add pair';
+    btn.textContent = '＋ Add pair';
     btn.disabled = false;
   }
 }
@@ -703,7 +710,7 @@ function renderGTPairs(n) {
     <div class="gt-pair">
       <span class="pid">${p.id}</span>
       <span>${p.img}</span>
-      <span class="status">v</span>
+      <span class="status">✓</span>
     </div>
   `).join('');
   if (n >= 3) {
@@ -714,10 +721,10 @@ function renderGTPairs(n) {
 async function startTraining() {
   const btn = $('trainBtn');
   btn.disabled = true;
-  btn.textContent = ' Training... (this takes a few minutes)';
+  btn.textContent = '🧠 Training… (this takes a few minutes)';
   $('trainLabel').classList.remove('hidden');
-  $('trainLabel').textContent = 'Fine-tuning Cellpose on your data...';
-  log('-> Starting fine-tuning on GPU...', 'info');
+  $('trainLabel').textContent = 'Fine-tuning Cellpose on your data…';
+  log('→ Starting fine-tuning on GPU…', 'info');
   try {
     const fd = new FormData();
     fd.append('model_name', 'cyto3');
@@ -725,16 +732,14 @@ async function startTraining() {
     const res = await fetch(`${API}/train`, { method:'POST', body:fd });
     if (!res.ok) throw new Error(await res.text());
     const d = await res.json();
-    log(`<span class="ok">v Training complete: ${d.message}</span>`);
-    $('trainLabel').textContent = `v Model saved: ${d.model_path || 'models/segmentum_custom'}`;
-    btn.textContent = 'v Model trained - select it in overrides';
+    log(`<span class="ok">✓ Training complete: ${d.message}</span>`);
+    $('trainLabel').textContent = `✓ Model saved: ${d.model_path || 'models/segmentum_custom'}`;
+    btn.textContent = '✓ Model trained — select it in overrides';
   } catch(e) {
-    log(`<span class="err">x Training failed: ${e.message}</span>`);
+    log(`<span class="err">✗ Training failed: ${e.message}</span>`);
     btn.disabled = false;
-    btn.textContent = ' Retry training';
+    btn.textContent = '🧠 Retry training';
   }
-}
-
 // Quality toggle visual
 const qt = $('qualityToggle');
 if (qt) {
