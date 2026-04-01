@@ -343,6 +343,30 @@
         </div>
       </div>
 
+
+  <!-- Batch processing -->
+  <div class="batch-section" id="batchSection">
+    <div class="card">
+      <div class="card-header">Batch Processing <span class="tag" style="background:rgba(59,130,246,0.15);color:var(--blue);">up to 20 images</span></div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">Upload multiple images at once. Get back a ZIP with all overlays, masks, and a combined CSV.</p>
+        <div class="batch-drop" id="batchDrop">
+          <input type="file" id="batchInput" accept=".tif,.tiff,.png,.jpg,.jpeg" multiple>
+          <div style="font-size:1.5rem;margin-bottom:8px;">📁</div>
+          <div style="font-size:13px;font-weight:500;">Drop multiple images here</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">or click to select — up to 20 files</div>
+        </div>
+        <div class="batch-queue hidden" id="batchQueue"></div>
+        <button class="batch-run hidden" id="batchRunBtn" onclick="runBatch()">
+          ▶ Process All & Download ZIP
+        </button>
+        <div class="progress-bar hidden" id="batchProgressBar">
+          <div class="progress-fill" id="batchProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
     </div><!-- /left -->
 
     <!-- RIGHT COLUMN -->
@@ -932,6 +956,91 @@ if (qt) {
     $('toggleThumb').style.background  = qt.checked ? 'var(--cyan)' : 'var(--muted)';
   });
 }
+
+// ── Batch processing ──────────────────────────────────────────────────────────
+let batchFiles = [];
+
+$('batchInput').addEventListener('change', e => {
+  batchFiles = Array.from(e.target.files).slice(0, 20);
+  renderBatchQueue();
+});
+
+const bd = $('batchDrop');
+bd.addEventListener('dragover', e => { e.preventDefault(); bd.style.borderColor='var(--blue)'; });
+bd.addEventListener('dragleave', () => { bd.style.borderColor=''; });
+bd.addEventListener('drop', e => {
+  e.preventDefault(); bd.style.borderColor='';
+  batchFiles = Array.from(e.dataTransfer.files).filter(f =>
+    /\.(tif|tiff|png|jpg|jpeg)$/i.test(f.name)
+  ).slice(0, 20);
+  renderBatchQueue();
+});
+
+function renderBatchQueue() {
+  if (!batchFiles.length) return;
+  $('batchQueue').classList.remove('hidden');
+  $('batchRunBtn').classList.remove('hidden');
+  $('batchQueue').innerHTML = batchFiles.map((f,i) => `
+    <div class="batch-item" id="bitem-${i}">
+      <span class="bname">${f.name}</span>
+      <span class="bstatus">${(f.size/1024).toFixed(0)} KB</span>
+    </div>
+  `).join('');
+}
+
+async function runBatch() {
+  if (!batchFiles.length) return;
+  const btn = $('batchRunBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  $('batchProgressBar').classList.remove('hidden');
+  $('batchProgressFill').style.width = '5%';
+
+  try {
+    const fd = new FormData();
+    batchFiles.forEach(f => fd.append('files', f));
+    fd.append('prefer_gpu', 'true');
+
+    // Update status
+    batchFiles.forEach((_,i) => {
+      const el = $(`bitem-${i}`);
+      if (el) el.querySelector('.bstatus').textContent = 'queued...';
+    });
+
+    $('batchProgressFill').style.width = '20%';
+
+    const res = await fetch(`${API}/batch`, {
+      method: 'POST',
+      body: fd,
+      signal: AbortSignal.timeout ? AbortSignal.timeout(300000) : undefined
+    });
+
+    $('batchProgressFill').style.width = '90%';
+
+    if (!res.ok) throw new Error(await res.text());
+
+    // Download ZIP
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'segmentum_batch.zip'; a.click();
+
+    $('batchProgressFill').style.width = '100%';
+    btn.textContent = 'Done — ZIP downloaded';
+
+    // Mark all done
+    batchFiles.forEach((_,i) => {
+      const el = $(`bitem-${i}`);
+      if (el) { el.classList.add('done'); el.querySelector('.bstatus').textContent = 'done'; }
+    });
+
+  } catch(e) {
+    btn.textContent = 'Failed — try again';
+    btn.disabled = false;
+    console.error('Batch error:', e);
+  }
+}
+
 </script>
 </body>
 </html>
