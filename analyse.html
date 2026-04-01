@@ -186,6 +186,23 @@
         </div>
       </div>
 
+
+      <!-- VLM AI Analysis card -->
+      <div class="card vlm-card hidden" id="vlmCard">
+        <div class="card-header">AI Analysis <span class="tag" style="background:rgba(224,64,160,0.15);color:var(--magenta);">Segmentum VLM</span></div>
+        <div class="card-body">
+          <div class="vlm-thinking hidden" id="vlmThinking">
+            <div class="dot"></div>
+            <span>Analysing image with Segmentum VLM...</span>
+          </div>
+          <div id="vlmContent" class="hidden">
+            <div class="vlm-badge" id="vlmBadge">* VLM</div>
+            <div class="vlm-reasoning" id="vlmReasoning"></div>
+            <div class="vlm-fields" id="vlmFields"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Segmentation plan -->
       <div class="card" id="planCard">
         <div class="card-header">Segmentation Plan <span class="tag" id="confidenceTag">–</span></div>
@@ -487,6 +504,7 @@ async function detectAndSuggest(file) {
     if (!profileRes.ok) throw new Error(await profileRes.text());
     currentProfile = await profileRes.json();
     renderProfile(currentProfile);
+    renderVLM(currentProfile);
     setProgress(35);
     log(`<span class="ok">✓ ${currentProfile.summary}</span>`);
 
@@ -513,6 +531,32 @@ async function detectAndSuggest(file) {
 }
 
 // ── Render profile ────────────────────────────────────────────────────────────
+function renderVLM(p) {
+  // Show VLM card with AI reasoning from warnings
+  const vlmWarning = (p.warnings || []).find(w => w.startsWith('VLM'));
+  if (!vlmWarning) return;
+
+  $('vlmCard').classList.remove('hidden');
+  $('vlmThinking').classList.add('hidden');
+  $('vlmContent').classList.remove('hidden');
+
+  // Parse "VLM (high): reasoning text"
+  const match = vlmWarning.match(/VLM \((\w+)\): (.+)/);
+  const confidence = match ? match[1] : 'medium';
+  const reasoning  = match ? match[2] : vlmWarning;
+
+  const confColors = { high: 'var(--cyan)', medium: 'var(--yellow)', low: 'var(--error)' };
+  $('vlmBadge').innerHTML = `* Segmentum VLM <span style="color:${confColors[confidence]||'var(--muted)'};margin-left:6px;">${confidence} confidence</span>`;
+  $('vlmReasoning').textContent = reasoning;
+
+  $('vlmFields').innerHTML = [
+    ['Object type',  p.object_type],
+    ['Modality',     'fluorescence'],
+    ['Density',      p.object_density],
+    ['Est. diameter', p.estimated_diameter_px > 0 ? p.estimated_diameter_px.toFixed(0) + ' px' : 'auto'],
+  ].map(([l,v]) => `<div class="vlm-field"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('');
+}
+
 function renderProfile(p) {
   $('profileTag').textContent = p.object_type;
   $('profileGrid').innerHTML = [
