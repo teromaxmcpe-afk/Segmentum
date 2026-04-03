@@ -236,13 +236,18 @@
               </div>
               <select id="backendSelect" onchange="updateBackendLabel()">
                 <option value="">Auto (recommended)</option>
-                  <option value="cellpose|segmentum_mdck_v2">Segmentum MDCK v2 (cysts/organoids)</option>
+                <optgroup label="★ Segmentum Proprietary Models">
+                  <option value="stardist|segmentum_nuclei">Segmentum Nuclei — StarDist fine-tuned, F1 0.874</option>
+                  <option value="cellpose|segmentum_mdck_v2">Segmentum MDCK v2 — cysts/organoids, IoU 0.645</option>
+                  <option value="cellpose|segmentum_bacteria">Segmentum Bacteria — DeepBacs fine-tuned</option>
+                  <option value="cellpose|segmentum_tissue">Segmentum Tissue — H&amp;E MoNuSeg fine-tuned</option>
+                </optgroup>
                 <optgroup label="Foundation Models — best quality">
                   <option value="cellsam|cellsam_vit_b">CellSAM — universal (bacteria/tissue/yeast/fluo)</option>
                   <option value="microsam|vit_b_lm">MicroSAM — vit_b_lm (light microscopy)</option>
                 </optgroup>
                 <optgroup label="Cellpose">
-                  <option value="cellpose|cpsam">Cellpose-SAM — v4 superhuman (upgrade to v4 first)</option>
+                  <option value="cellpose|cpsam">Cellpose-SAM — v4 superhuman</option>
                   <option value="cellpose|cyto3">Cellpose — cyto3 (cells)</option>
                   <option value="cellpose|nuclei">Cellpose — nuclei</option>
                 </optgroup>
