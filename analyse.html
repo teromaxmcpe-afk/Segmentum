@@ -110,6 +110,13 @@
   .dl-btn { flex:1; padding:9px; background:var(--bg3); border:1px solid var(--border); color:var(--text); border-radius:8px; cursor:pointer; font-size:12px; font-family:'DM Sans',sans-serif; transition:all 0.15s; text-align:center; display:flex; align-items:center; justify-content:center; gap:5px; }
   .dl-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,229,200,0.05); }
   .dl-btn.tif { border-color:rgba(0,229,200,0.3); color:var(--cyan); }
+  .fig-card { position:relative; background:#131920; border:1.5px solid rgba(255,255,255,0.09); border-radius:10px; padding:14px 16px 13px; cursor:pointer; transition:border-color 0.2s,background 0.2s; min-height:72px; }
+  .fig-card:hover { border-color:rgba(0,229,200,0.3); background:rgba(0,229,200,0.04); }
+  .fig-card.selected { border-color:#00e5c8; background:rgba(0,229,200,0.08); }
+  .fig-card .fcheck { position:absolute; top:12px; right:12px; width:18px; height:18px; border-radius:50%; border:1.5px solid rgba(255,255,255,0.2); background:#0d1117; display:flex; align-items:center; justify-content:center; font-size:10px; color:transparent; transition:all 0.15s; }
+  .fig-card.selected .fcheck { background:#00e5c8; border-color:#00e5c8; color:#06080d; font-weight:700; }
+  .fig-card .fname { font-size:13px; font-weight:600; color:#e8edf3; margin-bottom:4px; padding-right:26px; line-height:1.3; }
+  .fig-card .fdesc { font-size:11px; color:#6b7a8d; line-height:1.5; }
 
   /* Log */
   .log { font-family:var(--font-mono); font-size:11px; color:var(--muted); background:var(--bg3); border-radius:8px; padding:10px 12px; max-height:110px; overflow-y:auto; margin-top:10px; line-height:1.8; }
@@ -452,30 +459,30 @@
       </div>
 
 
-      <!-- Analysis Graphs card — always visible after segmentation -->
-      <div class="card hidden" id="graphsCard">
-        <div class="card-header">Analysis Graphs <span class="tag" style="background:rgba(224,64,160,0.15);color:var(--magenta);font-family:var(--font-mono);font-size:10px;">Publication ready</span></div>
+      <!-- Analysis Graphs card -->
+      <div class="card hidden" id="graphsCard" style="margin-top:16px;">
+        <div class="card-header">Analysis Graphs <span class="tag">Publication ready</span></div>
         <div class="card-body">
-          <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Select figures, choose format, download as ZIP (PNG 300 DPI + PDF vector).</p>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Select figures · choose format · download ZIP (PNG 300 DPI + PDF vector)</p>
 
-          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">Basic</div>
-          <div id="figGridBasic" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
+          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Basic</div>
+          <div id="figGridBasic" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;margin-bottom:16px;"></div>
 
-          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">Advanced</div>
-          <div id="figGridAdv" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
+          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;margin-top:4px;">Advanced</div>
+          <div id="figGridAdv" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px;margin-bottom:16px;"></div>
 
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
             <span style="font-size:11px;color:var(--muted);">Format:</span>
-            <button class="fig-fmt-pill active" id="fmtPng" onclick="setFigFmt('png')">PNG 300 DPI</button>
-            <button class="fig-fmt-pill" id="fmtPdf" onclick="setFigFmt('pdf')">PDF vector</button>
-            <button class="fig-fmt-pill" id="fmtBoth" onclick="setFigFmt('both')">Both</button>
+            <button class="seg-btn active" id="fmtPng" onclick="setFigFmt('png')">PNG 300 DPI</button>
+            <button class="seg-btn" id="fmtPdf" onclick="setFigFmt('pdf')">PDF vector</button>
+            <button class="seg-btn" id="fmtBoth" onclick="setFigFmt('both')">Both</button>
           </div>
 
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <button class="fig-link-btn" onclick="figSelectAll()">Select all</button>
-            <button class="fig-link-btn" onclick="figClearAll()">Clear</button>
-            <span style="font-size:11px;color:var(--muted);flex:1;" id="figSelCount">4 figures selected</span>
-            <button class="fig-dl-btn" id="figDlBtn" onclick="downloadFigures()">▼ Download ZIP</button>
+          <div class="dl-row" style="margin-top:8px;">
+            <button class="dl-btn" onclick="figSelectAll()">Select all</button>
+            <button class="dl-btn" onclick="figClearAll()">Clear</button>
+            <span style="font-size:11px;color:var(--muted);display:flex;align-items:center;padding:0 8px;" id="figSelCount">4 selected</span>
+            <button class="dl-btn tif" id="figDlBtn" onclick="downloadFigures()" style="flex:2;">▼ Download ZIP</button>
           </div>
         </div>
       </div>
@@ -505,6 +512,7 @@
 })();
 
 const API = 'https://compute.segmentum.bio';
+document.addEventListener('DOMContentLoaded', () => { renderFigPanel(); });
 
 // State
 let currentFile = null;
@@ -1143,12 +1151,14 @@ function renderFigPanel() {
   ['basic','advanced'].forEach(sec => {
     const grid = $('figGrid' + (sec === 'basic' ? 'Basic' : 'Adv'));
     if (!grid) return;
-    grid.innerHTML = FIG_DEFS.filter(f => f.section === sec).map(f => `
-      <div class="fig-card ${figSelected.has(f.id) ? 'selected' : ''}" onclick="figToggle('${f.id}')">
-        <div class="fcheck">${figSelected.has(f.id) ? '✓' : ''}</div>
+    grid.innerHTML = FIG_DEFS.filter(f => f.section === sec).map(f => {
+      const sel = figSelected.has(f.id);
+      return `<div class="fig-card${sel ? ' selected' : ''}" onclick="figToggle('${f.id}')">
+        <div class="fcheck">${sel ? '✓' : ''}</div>
         <div class="fname">${f.name}</div>
         <div class="fdesc">${f.desc}</div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   });
   const n = figSelected.size;
   const selEl = $('figSelCount');
@@ -1162,8 +1172,9 @@ function figSelectAll() { FIG_DEFS.forEach(f => figSelected.add(f.id)); renderFi
 function figClearAll()  { figSelected.clear(); renderFigPanel(); }
 function setFigFmt(f) {
   figFmt = f;
-  ['fmtPng','fmtPdf','fmtBoth'].forEach(id => $( id).classList.remove('active'));
-  $('fmt' + f.charAt(0).toUpperCase() + f.slice(1)).classList.add('active');
+  ['fmtPng','fmtPdf','fmtBoth'].forEach(id => { const el = $(id); if(el) { el.classList.remove('active'); } });
+  const target = $('fmt' + f.charAt(0).toUpperCase() + f.slice(1));
+  if (target) target.classList.add('active');
 }
 
 async function downloadFigures() {
