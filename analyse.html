@@ -481,6 +481,8 @@ let currentFile = null;
 let currentProfile = null;
 let currentPlan = null;
 let currentResult = null;
+let currentMeasurements = [];
+let currentFilename = '';
 let gtPairs = [];
 let histChartInst = null;
 let scatterChartInst = null;
@@ -679,6 +681,8 @@ async function runSegmentation() {
     clearInterval(ticker);
     if (!res.ok) throw new Error(await res.text());
     currentResult = await res.json();
+    currentMeasurements = currentResult.measurements || [];
+    currentFilename = currentFile ? currentFile.name : 'Sample';
 
     setProgress(100);
     log(`<span class="ok">✓ ${currentResult.n_objects} objects · ${currentResult.runtime_seconds.toFixed(1)}s · ${currentResult.backend_used} (${currentResult.model_used})</span>`);
@@ -758,6 +762,7 @@ function renderResults(r) {
     <button class="dl-btn tif" onclick="downloadMasksTIF()">Download Masks.tif (uint16)</button>
     <button class="dl-btn" onclick="downloadCSV()">CSV</button>
     <button class="dl-btn" onclick="downloadOverlay()">Overlay</button>
+    <button class="dl-btn" onclick="downloadFigures()" style="background:linear-gradient(135deg,var(--magenta),#c0208a);color:#fff;border:none;" title="Download 9 publication-ready figures as ZIP (PNG + PDF, 300 DPI)">📊 Publication Figures</button>
   `;
 }
 
@@ -1043,6 +1048,43 @@ async function runBatch() {
     btn.textContent = 'Failed — try again';
     btn.disabled = false;
     console.error('Batch error:', e);
+  }
+}
+
+
+async function downloadFigures() {
+  if (!currentMeasurements || currentMeasurements.length === 0) {
+    alert('Run segmentation first to generate measurements.');
+    return;
+  }
+  const btn = document.querySelector('[onclick="downloadFigures()"]');
+  const orig = btn.textContent;
+  btn.textContent = 'Generating figures...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/figures`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        measurements: currentMeasurements,
+        condition_name: currentFilename ? currentFilename.replace(/\.[^.]+$/, '') : 'Sample',
+        img_height: currentProfile ? currentProfile.height : 0,
+        img_width:  currentProfile ? currentProfile.width  : 0,
+      }),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'segmentum_figures.zip'; a.click();
+    btn.textContent = '✓ Downloaded';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  } catch(e) {
+    btn.textContent = 'Failed';
+    btn.disabled = false;
+    console.error('Figures error:', e);
   }
 }
 
