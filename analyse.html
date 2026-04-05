@@ -570,6 +570,14 @@ async function detectAndSuggest(file) {
     currentProfile = await profileRes.json();
     renderProfile(currentProfile);
     renderVLM(currentProfile);
+    // Show raw image preview from server thumbnail
+    if (currentProfile.preview_b64) {
+      const img = $('previewImg');
+      img.src = 'data:image/png;base64,' + currentProfile.preview_b64;
+      img.style.display = 'block';
+      const ph = $('previewPlaceholder');
+      if (ph) ph.style.display = 'none';
+    }
     setProgress(35);
     log(`<span class="ok">✓ ${currentProfile.summary}</span>`);
 
@@ -744,12 +752,6 @@ function renderResults(r) {
   ].map(c => `<div class="stat-chip"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>`).join('');
 
   $('overlayImg').src = 'data:image/png;base64,' + r.overlay_b64;
-  // Also update preview card with overlay
-  const prevImg = $('previewImg');
-  prevImg.src = 'data:image/png;base64,' + r.overlay_b64;
-  prevImg.style.display = 'block';
-  const ph = $('previewPlaceholder');
-  if (ph) ph.style.display = 'none';
 
   const areas  = m.map(o => o.area_px).filter(v => v > 0);
   const circs  = m.map(o => o.circularity).filter(v => v > 0);
