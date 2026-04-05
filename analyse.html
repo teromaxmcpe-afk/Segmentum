@@ -551,9 +551,10 @@ async function handleFile(file) {
   reader.readAsDataURL(file);
   $('workspace').classList.remove('hidden');
   $('logBox').innerHTML = '';
-  $('runBtn').classList.add('hidden');
-  $('resultsCard').classList.add('hidden');
-  $('profileTag').textContent = 'analysing…';
+  if ($('runBtn')) $('runBtn').classList.add('hidden');
+  if ($('resultsCard')) $('resultsCard').classList.add('hidden');
+  if ($('graphsCard')) $('graphsCard').classList.add('hidden');
+  if ($('profileTag')) $('profileTag').textContent = 'analysing…';
   log(`📂 ${file.name} (${(file.size/1024).toFixed(0)} KB)`, 'info');
   await detectAndSuggest(file);
 }
