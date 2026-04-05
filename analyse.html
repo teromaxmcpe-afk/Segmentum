@@ -526,7 +526,28 @@ async function handleFile(file) {
   if (!file) return;
   currentFile = file;
   const reader = new FileReader();
-  reader.onload = e => { const img = $('previewImg'); img.src = e.target.result; img.style.display = 'block'; $('imageCard').style.minHeight = '120px'; };
+  reader.onload = e => {
+    const data = e.target.result;
+    const img  = $('previewImg');
+    // TIF files can't be displayed natively by browsers
+    // Show a placeholder with filename instead, replaced by overlay after segmentation
+    if (file.name.match(/\.tiff?$/i)) {
+      img.style.display = 'none';
+      let ph = $('previewPlaceholder');
+      if (!ph) {
+        ph = document.createElement('div');
+        ph.id = 'previewPlaceholder';
+        ph.style.cssText = 'padding:20px;text-align:center;color:var(--muted);font-size:12px;';
+        img.parentNode.insertBefore(ph, img);
+      }
+      ph.innerHTML = `<div style="font-size:2rem;margin-bottom:8px;">🔬</div><div style="color:var(--text);font-weight:500;margin-bottom:4px;">${file.name}</div><div>${(file.size/1024/1024).toFixed(1)} MB · Run segmentation to preview</div>`;
+    } else {
+      img.src = data;
+      img.style.display = 'block';
+      const ph = $('previewPlaceholder');
+      if (ph) ph.style.display = 'none';
+    }
+  };
   reader.readAsDataURL(file);
   $('workspace').classList.remove('hidden');
   $('logBox').innerHTML = '';
@@ -723,6 +744,12 @@ function renderResults(r) {
   ].map(c => `<div class="stat-chip"><div class="num">${c.num}</div><div class="lbl">${c.lbl}</div></div>`).join('');
 
   $('overlayImg').src = 'data:image/png;base64,' + r.overlay_b64;
+  // Also update preview card with overlay
+  const prevImg = $('previewImg');
+  prevImg.src = 'data:image/png;base64,' + r.overlay_b64;
+  prevImg.style.display = 'block';
+  const ph = $('previewPlaceholder');
+  if (ph) ph.style.display = 'none';
 
   const areas  = m.map(o => o.area_px).filter(v => v > 0);
   const circs  = m.map(o => o.circularity).filter(v => v > 0);
