@@ -762,7 +762,7 @@ function renderResults(r) {
     <button class="dl-btn tif" onclick="downloadMasksTIF()">Download Masks.tif (uint16)</button>
     <button class="dl-btn" onclick="downloadCSV()">CSV</button>
     <button class="dl-btn" onclick="downloadOverlay()">Overlay</button>
-    <button class="dl-btn" onclick="downloadFigures()" style="background:linear-gradient(135deg,var(--magenta),#c0208a);color:#fff;border:none;" title="Download 9 publication-ready figures as ZIP (PNG + PDF, 300 DPI)">📊 Publication Figures</button>
+    <button class="dl-btn" onclick="toggleFigPanel()" id="figPanelBtn" style="background:linear-gradient(135deg,var(--magenta),#c0208a);color:#fff;border:none;">📊 Publication Figures</button>
   `;
 }
 
@@ -1083,6 +1083,93 @@ async function downloadFigures() {
     setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
   } catch(e) {
     btn.textContent = 'Failed';
+    btn.disabled = false;
+    console.error('Figures error:', e);
+  }
+}
+
+
+// ── Publication figures panel ──────────────────────────────────────────────
+const FIG_DEFS = [
+  { id:'cell_count',  name:'Cell count',       desc:'Bar chart per condition',         section:'basic'  },
+  { id:'size_dist',   name:'Size distribution',desc:'Histogram of cell area',           section:'basic'  },
+  { id:'intensity',   name:'Intensity',         desc:'Fluorescence signal dist.',        section:'basic'  },
+  { id:'morphology',  name:'Morphology',        desc:'Area vs circularity',              section:'basic'  },
+  { id:'violin',      name:'Violin plot',        desc:'Single-cell area profiles',        section:'basic'  },
+  { id:'boxplot',     name:'Boxplot',            desc:'Multi-condition comparison',       section:'basic'  },
+  { id:'scatter',     name:'Size vs intensity', desc:'Co-expression scatter',            section:'advanced'},
+  { id:'spatial',     name:'Spatial heatmap',   desc:'Cell density map',                 section:'advanced'},
+  { id:'umap',        name:'UMAP',              desc:'Cell subtype discovery',           section:'advanced'},
+];
+
+let figSelected = new Set(['cell_count','size_dist','morphology','violin']);
+let figFmt = 'png';
+
+function toggleFigPanel() {
+  const p = $('figPanel');
+  p.classList.toggle('hidden');
+  if (!p.classList.contains('hidden')) renderFigPanel();
+}
+
+function renderFigPanel() {
+  ['basic','advanced'].forEach(sec => {
+    const grid = $('figGrid' + (sec === 'basic' ? 'Basic' : 'Adv'));
+    grid.innerHTML = FIG_DEFS.filter(f => f.section === sec).map(f => `
+      <div class="fig-card ${figSelected.has(f.id) ? 'selected' : ''}" onclick="figToggle('${f.id}')">
+        <div class="fcheck">${figSelected.has(f.id) ? '✓' : ''}</div>
+        <div class="fname">${f.name}</div>
+        <div class="fdesc">${f.desc}</div>
+      </div>`).join('');
+  });
+  const n = figSelected.size;
+  $('figSelCount').textContent = n === 0 ? 'none selected' : `${n} figure${n>1?'s':''} selected`;
+  $('figDlBtn').disabled = n === 0 || !currentMeasurements || currentMeasurements.length === 0;
+}
+
+function figToggle(id) { figSelected.has(id) ? figSelected.delete(id) : figSelected.add(id); renderFigPanel(); }
+function figSelectAll() { FIG_DEFS.forEach(f => figSelected.add(f.id)); renderFigPanel(); }
+function figClearAll()  { figSelected.clear(); renderFigPanel(); }
+function setFigFmt(f) {
+  figFmt = f;
+  ['fmtPng','fmtPdf','fmtBoth'].forEach(id => $( id).classList.remove('active'));
+  $('fmt' + f.charAt(0).toUpperCase() + f.slice(1)).classList.add('active');
+}
+
+async function downloadFigures() {
+  if (!currentMeasurements || currentMeasurements.length === 0) {
+    alert('Run segmentation first to generate measurements.');
+    return;
+  }
+  if (figSelected.size === 0) { alert('Select at least one figure.'); return; }
+
+  const btn = $('figDlBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Generating...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`${API}/figures`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        measurements:   currentMeasurements,
+        condition_name: currentFilename ? currentFilename.replace(/\.[^.]+$/, '') : 'Sample',
+        img_height:     currentProfile ? currentProfile.height : 0,
+        img_width:      currentProfile ? currentProfile.width  : 0,
+        selected_figures: Array.from(figSelected),
+        format:         figFmt,
+      }),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(120000) : undefined
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'segmentum_figures.zip'; a.click();
+    btn.textContent = '✓ Downloaded';
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  } catch(e) {
+    btn.textContent = 'Failed — retry';
     btn.disabled = false;
     console.error('Figures error:', e);
   }
