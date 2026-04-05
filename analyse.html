@@ -243,29 +243,12 @@
               </div>
               <select id="backendSelect" onchange="updateBackendLabel()">
                 <option value="">Auto (recommended)</option>
-                <optgroup label="★ Segmentum Proprietary Models">
-                  <option value="stardist|segmentum_nuclei">Segmentum Nuclei — StarDist fine-tuned, F1 0.874</option>
-                  <option value="cellpose|segmentum_mdck_v2">Segmentum MDCK v2 — cysts/organoids, IoU 0.645</option>
-                  <option value="cellpose|segmentum_bacteria">Segmentum Bacteria — DeepBacs fine-tuned</option>
-                  <option value="cellpose|segmentum_tissue">Segmentum Tissue — H&amp;E MoNuSeg fine-tuned</option>
-                </optgroup>
-                <optgroup label="Foundation Models — best quality">
-                  <option value="cellsam|cellsam_vit_b">CellSAM — universal (bacteria/tissue/yeast/fluo)</option>
-                  <option value="microsam|vit_b_lm">MicroSAM — vit_b_lm (light microscopy)</option>
-                </optgroup>
-                <optgroup label="Cellpose">
-                  <option value="cellpose|cpsam">Cellpose-SAM — v4 superhuman</option>
-                  <option value="cellpose|cyto3">Cellpose — cyto3 (cells)</option>
-                  <option value="cellpose|nuclei">Cellpose — nuclei</option>
-                </optgroup>
-                <optgroup label="Specialist">
-                  <option value="omnipose|bact_omni">Omnipose — bacteria</option>
-                  <option value="stardist|2D_versatile_fluo">StarDist — cells &amp; nuclei (versatile)</option>
-                  <option value="stardist|2D_versatile_he">StarDist — H&amp;E tissue</option>
-                </optgroup>
-                <optgroup label="Fallback">
-                  <option value="threshold|otsu">Threshold — Otsu</option>
-                </optgroup>
+                <option value="stardist|segmentum_nuclei">Segmentum Nuclei</option>
+                <option value="cellpose|segmentum_mdck_v2">Segmentum MDCK</option>
+                <option value="cellpose|segmentum_bacteria">Segmentum Bacteria</option>
+                <option value="cellpose|segmentum_tissue">Segmentum Tissue</option>
+                <option value="cellpose|cpsam">Cellpose (generic)</option>
+                <option value="threshold|otsu">Threshold</option>
               </select>
             </div>
 
@@ -296,18 +279,8 @@
         <span>▶ Run Segmentation</span>
       </button>
 
-      <!-- Quality toggle -->
-      <div class="hidden" id="qualityRow" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
-        <div>
-          <div style="font-size:13px;font-weight:500;">High quality mode</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">CellSAM foundation model · 3-8s · better results</div>
-        </div>
-        <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;">
-          <input type="checkbox" id="qualityToggle" style="opacity:0;width:0;height:0;">
-          <span style="position:absolute;inset:0;background:var(--bg2);border:1px solid var(--border);border-radius:11px;transition:0.2s;" id="toggleTrack"></span>
-          <span style="position:absolute;top:3px;left:3px;width:14px;height:14px;background:var(--muted);border-radius:50%;transition:0.2s;" id="toggleThumb"></span>
-        </label>
-      </div>
+      <!-- Quality toggle removed -->
+      <input type="checkbox" id="qualityToggle" style="display:none;">
       <div class="progress-bar hidden" id="progressBar">
         <div class="progress-fill" id="progressFill" style="width:0%"></div>
       </div>
@@ -320,7 +293,7 @@
         </div>
         <div class="card-body">
           <p style="font-size:12px;color:var(--muted);margin-bottom:12px;">
-            Upload corrected masks alongside your images to fine-tune a model on your specific cell type. Minimum 3 pairs.
+            Upload image + mask pairs to fine-tune <strong style='color:var(--cyan)'>Cellpose cpsam</strong> on your specific cell type. The trained model saves to <code style='color:var(--muted);font-size:10px;'>models/segmentum_custom</code> and is available in the model selector. Minimum 3 pairs.
           </p>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -369,9 +342,11 @@
           <div style="font-size:11px;color:var(--muted);margin-top:4px;">or click to select — up to 20 files</div>
         </div>
         <div class="batch-queue hidden" id="batchQueue"></div>
-        <button class="batch-run hidden" id="batchRunBtn" onclick="runBatch()">
-          ▶ Process All & Download ZIP
-        </button>
+        <div class="dl-row hidden" id="batchRunRow">
+          <button class="dl-btn tif" id="batchRunBtn" onclick="runBatch()" style="flex:1;">
+            ▶ Process All &amp; Download ZIP
+          </button>
+        </div>
         <div class="progress-bar hidden" id="batchProgressBar">
           <div class="progress-fill" id="batchProgressFill" style="width:0%"></div>
         </div>
@@ -387,7 +362,7 @@
       <div class="card" id="imageCard">
         <div class="card-header">Preview</div>
         <div class="card-body" style="padding:10px">
-          <img id="previewImg" class="result-image" style="display:none">
+          <img id="previewImg" class="result-image" style="display:none;width:100%;border-radius:8px;object-fit:contain;max-height:300px;">
         </div>
       </div>
 
@@ -551,7 +526,7 @@ async function handleFile(file) {
   if (!file) return;
   currentFile = file;
   const reader = new FileReader();
-  reader.onload = e => { const img = $('previewImg'); img.src = e.target.result; img.style.display = 'block'; };
+  reader.onload = e => { const img = $('previewImg'); img.src = e.target.result; img.style.display = 'block'; $('imageCard').style.minHeight = '120px'; };
   reader.readAsDataURL(file);
   $('workspace').classList.remove('hidden');
   $('logBox').innerHTML = '';
@@ -1028,7 +1003,7 @@ bd.addEventListener('drop', e => {
 function renderBatchQueue() {
   if (!batchFiles.length) return;
   $('batchQueue').classList.remove('hidden');
-  $('batchRunBtn').classList.remove('hidden');
+  $('batchRunRow').classList.remove('hidden');
   $('batchQueue').innerHTML = batchFiles.map((f,i) => `
     <div class="batch-item" id="bitem-${i}">
       <span class="bname">${f.name}</span>
@@ -1039,7 +1014,7 @@ function renderBatchQueue() {
 
 async function runBatch() {
   if (!batchFiles.length) return;
-  const btn = $('batchRunBtn');
+  const btn = document.querySelector('#batchRunBtn');
   btn.disabled = true;
   btn.textContent = 'Processing...';
   $('batchProgressBar').classList.remove('hidden');
