@@ -398,7 +398,6 @@
             <div class="tab" data-tab="morphology">Morphology</div>
             <div class="tab" data-tab="spatial">Spatial</div>
             <div class="tab" data-tab="boxplot">Box Plot</div>
-            <div class="tab" data-tab="graphs" style="color:var(--magenta);border-color:rgba(224,64,160,0.2);">📊 Graphs</div>
           </div>
 
           <!-- Overlay -->
@@ -449,31 +448,34 @@
           <div class="warn-list" id="warnList"></div>
           <div class="dl-row" id="dlRow"></div>
 
-          <!-- Graphs tab panel -->
-          <div class="tab-panel" id="tab-graphs">
-            <div style="font-size:11px;color:var(--muted);margin-bottom:14px;">
-              <strong style="color:var(--text)">Publication figures</strong> — select, format, download as ZIP
-            </div>
+        </div>
+      </div>
 
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">Basic</div>
-            <div class="fig-grid" id="figGridBasic"></div>
 
-            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin:14px 0 8px;">Advanced</div>
-            <div class="fig-grid" id="figGridAdv"></div>
+      <!-- Analysis Graphs card — always visible after segmentation -->
+      <div class="card hidden" id="graphsCard">
+        <div class="card-header">Analysis Graphs <span class="tag" style="background:rgba(224,64,160,0.15);color:var(--magenta);font-family:var(--font-mono);font-size:10px;">Publication ready</span></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Select figures, choose format, download as ZIP (PNG 300 DPI + PDF vector).</p>
 
-            <div class="fig-fmt-row" style="margin-top:14px;">
-              <span style="font-size:11px;color:var(--muted);margin-right:6px;">Format:</span>
-              <button class="fig-fmt-pill active" id="fmtPng" onclick="setFigFmt('png')">PNG 300 DPI</button>
-              <button class="fig-fmt-pill" id="fmtPdf" onclick="setFigFmt('pdf')">PDF vector</button>
-              <button class="fig-fmt-pill" id="fmtBoth" onclick="setFigFmt('both')">Both</button>
-            </div>
+          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">Basic</div>
+          <div id="figGridBasic" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
 
-            <div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;">
-              <button class="fig-link-btn" onclick="figSelectAll()">Select all</button>
-              <button class="fig-link-btn" onclick="figClearAll()">Clear</button>
-              <span style="font-size:11px;color:var(--muted);flex:1;" id="figSelCount">4 figures selected</span>
-              <button class="fig-dl-btn" id="figDlBtn" onclick="downloadFigures()">▼ Download ZIP</button>
-            </div>
+          <div style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:8px;">Advanced</div>
+          <div id="figGridAdv" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:16px;"></div>
+
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+            <span style="font-size:11px;color:var(--muted);">Format:</span>
+            <button class="fig-fmt-pill active" id="fmtPng" onclick="setFigFmt('png')">PNG 300 DPI</button>
+            <button class="fig-fmt-pill" id="fmtPdf" onclick="setFigFmt('pdf')">PDF vector</button>
+            <button class="fig-fmt-pill" id="fmtBoth" onclick="setFigFmt('both')">Both</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button class="fig-link-btn" onclick="figSelectAll()">Select all</button>
+            <button class="fig-link-btn" onclick="figClearAll()">Clear</button>
+            <span style="font-size:11px;color:var(--muted);flex:1;" id="figSelCount">4 figures selected</span>
+            <button class="fig-dl-btn" id="figDlBtn" onclick="downloadFigures()">▼ Download ZIP</button>
           </div>
         </div>
       </div>
@@ -786,6 +788,7 @@ function renderResults(r) {
   ]);
 
   $('warnList').innerHTML = (r.warnings||[]).map(w=>`<div class="warn-item">${w}</div>`).join('');
+  $('graphsCard').classList.remove('hidden');
   $('dlRow').innerHTML = `
     <button class="dl-btn tif" onclick="downloadMasksTIF()">Download Masks.tif (uint16)</button>
     <button class="dl-btn" onclick="downloadCSV()">CSV</button>
@@ -1136,8 +1139,10 @@ let figFmt = 'png';
 function toggleFigPanel() { /* moved to Graphs tab */ }
 
 function renderFigPanel() {
+  if (!$('figGridBasic')) return;
   ['basic','advanced'].forEach(sec => {
     const grid = $('figGrid' + (sec === 'basic' ? 'Basic' : 'Adv'));
+    if (!grid) return;
     grid.innerHTML = FIG_DEFS.filter(f => f.section === sec).map(f => `
       <div class="fig-card ${figSelected.has(f.id) ? 'selected' : ''}" onclick="figToggle('${f.id}')">
         <div class="fcheck">${figSelected.has(f.id) ? '✓' : ''}</div>
@@ -1146,8 +1151,10 @@ function renderFigPanel() {
       </div>`).join('');
   });
   const n = figSelected.size;
-  $('figSelCount').textContent = n === 0 ? 'none selected' : `${n} figure${n>1?'s':''} selected`;
-  $('figDlBtn').disabled = n === 0 || !currentMeasurements || currentMeasurements.length === 0;
+  const selEl = $('figSelCount');
+  if (selEl) selEl.textContent = n === 0 ? 'none selected' : `${n} figure${n>1?'s':''} selected`;
+  const dlBtn = $('figDlBtn');
+  if (dlBtn) dlBtn.disabled = n === 0 || !currentMeasurements || currentMeasurements.length === 0;
 }
 
 function figToggle(id) { figSelected.has(id) ? figSelected.delete(id) : figSelected.add(id); renderFigPanel(); }
