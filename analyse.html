@@ -605,7 +605,6 @@ async function detectAndSuggest(file) {
 
 // ── Render profile ────────────────────────────────────────────────────────────
 function renderVLM(p) {
-  // Show VLM card with AI reasoning from warnings
   const vlmWarning = (p.warnings || []).find(w => w.startsWith('VLM'));
   if (!vlmWarning) return;
 
@@ -613,20 +612,34 @@ function renderVLM(p) {
   $('vlmThinking').classList.add('hidden');
   $('vlmContent').classList.remove('hidden');
 
-  // Parse "VLM (high): reasoning text"
-  const match = vlmWarning.match(/VLM \((\w+)\): (.+)/);
+  // Parse "VLM (high): reasoning [modality:x, morphology:y, diameter:Zpx, flow:F, cellprob:C]"
+  const match      = vlmWarning.match(/VLM \((\w+)\): (.+?)(?:\[(.+)\])?$/);
   const confidence = match ? match[1] : 'medium';
-  const reasoning  = match ? match[2] : vlmWarning;
+  const reasoning  = match ? match[2].trim() : vlmWarning;
+  const metaStr    = match ? (match[3] || '') : '';
+
+  // Parse metadata from brackets
+  const meta = {};
+  metaStr.split(',').forEach(part => {
+    const [k, v] = part.trim().split(':');
+    if (k && v) meta[k.trim()] = v.trim();
+  });
 
   const confColors = { high: 'var(--cyan)', medium: 'var(--yellow)', low: 'var(--error)' };
-  $('vlmBadge').innerHTML = `* Segmentum VLM <span style="color:${confColors[confidence]||'var(--muted)'};margin-left:6px;">${confidence} confidence</span>`;
+  $('vlmBadge').innerHTML = `★ Segmentum VLM <span style="color:${confColors[confidence]||'var(--muted)'};margin-left:6px;">${confidence} confidence</span>`;
   $('vlmReasoning').textContent = reasoning;
 
+  const diam = p.estimated_diameter_px > 0 ? p.estimated_diameter_px.toFixed(0) + ' px' : 'auto';
+  const flow = meta['flow'] || '—';
+  const cellprob = meta['cellprob'] || '—';
+
   $('vlmFields').innerHTML = [
-    ['Object type',  p.object_type],
-    ['Modality',     'fluorescence'],
-    ['Density',      p.object_density],
-    ['Est. diameter', p.estimated_diameter_px > 0 ? p.estimated_diameter_px.toFixed(0) + ' px' : 'auto'],
+    ['Object type',   p.object_type],
+    ['Modality',      meta['modality'] || 'fluorescence'],
+    ['Morphology',    meta['morphology'] || '—'],
+    ['Diameter',      diam],
+    ['Flow threshold', flow],
+    ['Cell prob',     cellprob],
   ].map(([l,v]) => `<div class="vlm-field"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('');
 }
 
