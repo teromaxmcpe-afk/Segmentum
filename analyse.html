@@ -608,9 +608,14 @@ function renderVLM(p) {
   const vlmWarning = (p.warnings || []).find(w => w.startsWith('VLM'));
   if (!vlmWarning) return;
 
-  $('vlmCard').classList.remove('hidden');
-  $('vlmThinking').classList.add('hidden');
-  $('vlmContent').classList.remove('hidden');
+  const vlmCard = $('vlmCard');
+  const vlmThinking = $('vlmThinking');
+  const vlmContent = $('vlmContent');
+  if (!vlmCard) return;
+
+  vlmCard.classList.remove('hidden');
+  if (vlmThinking) vlmThinking.classList.add('hidden');
+  if (vlmContent) vlmContent.classList.remove('hidden');
 
   // Parse "VLM (high): reasoning [modality:x, morphology:y, diameter:Zpx, flow:F, cellprob:C]"
   const match      = vlmWarning.match(/VLM \((\w+)\): (.+?)(?:\[(.+)\])?$/);
