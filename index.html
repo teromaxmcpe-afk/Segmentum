@@ -245,13 +245,13 @@ nav.scrolled {
   will-change:transform;
 }
 .film-card {
-  width:280px; flex-shrink:0;
-  background:var(--ink-2); border:1px solid rgba(255,255,255,0.06);
-  border-radius:12px; overflow:hidden; transition:border-color 0.3s;
+  width:480px; flex-shrink:0;
+  background:var(--ink-3); border:0; border-right:1px solid rgba(255,255,255,0.08);
+  border-radius:0; overflow:hidden; transition:none;
 }
-.film-card:hover { border-color:rgba(0,229,200,0.25); }
-  .film-pair { width: 480px !important; min-width: 480px !important; }
-  .film-split { display:flex; gap:2px; height:240px !important; }
+.film-card:hover { opacity:0.95; }
+  .film-pair { width: 480px; min-width: 480px; }
+  .film-split { display:flex; gap:1px; height:280px; }
   .film-half { position:relative; flex:1; overflow:hidden; border-radius:4px; }
   .film-half img { width:100%; height:100%; object-fit:cover; display:block; }
   .film-label-overlay { position:absolute; bottom:6px; left:6px; font-family:var(--mono); font-size:9px; color:rgba(255,255,255,0.7); background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:3px; letter-spacing:0.08em; }
@@ -961,28 +961,30 @@ window.addEventListener('scroll', () => {
 (function() {
   const track = document.getElementById('filmstrip');
   if (!track) return;
-  
-  // Clone cards for seamless loop
-  const cards = Array.from(track.children);
-  cards.forEach(c => track.appendChild(c.cloneNode(true)));
-  
-  let pos = 0;
+
+  // Clone all cards for seamless infinite scroll
+  const origCards = Array.from(track.children);
+  origCards.forEach(c => track.appendChild(c.cloneNode(true)));
+  origCards.forEach(c => track.appendChild(c.cloneNode(true)));
+
+  let x = 0;
   let paused = false;
-  const speed = 0.6; // px per frame
-  
-  track.addEventListener('mouseenter', () => paused = true);
-  track.addEventListener('mouseleave', () => paused = false);
-  
-  function animate() {
+  const speed = 1.2;
+
+  track.parentElement.addEventListener('mouseenter', () => paused = true);
+  track.parentElement.addEventListener('mouseleave', () => paused = false);
+
+  function tick() {
     if (!paused) {
-      pos += speed;
-      const halfWidth = track.scrollWidth / 2;
-      if (pos >= halfWidth) pos = 0;
-      track.style.transform = `translateX(-${pos}px)`;
+      x += speed;
+      // Reset when we've scrolled one full set of original cards
+      const singleSetWidth = track.scrollWidth / 3;
+      if (x >= singleSetWidth) x = 0;
+      track.style.transform = 'translateX(-' + x + 'px)';
     }
-    requestAnimationFrame(animate);
+    requestAnimationFrame(tick);
   }
-  requestAnimationFrame(animate);
+  requestAnimationFrame(tick);
 })());
 
 // Waitlist form
