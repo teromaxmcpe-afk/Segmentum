@@ -993,7 +993,7 @@ window.addEventListener('scroll', () => {
 }, {passive:true});
 
 // ── Seamless filmstrip loop ───────────────────────────────────────────────────
-window.addEventListener('load', function() {
+(function() {
   const track = document.getElementById('filmstrip');
   if (!track) return;
 
@@ -1001,26 +1001,18 @@ window.addEventListener('load', function() {
   origCards.forEach(c => track.appendChild(c.cloneNode(true)));
   origCards.forEach(c => track.appendChild(c.cloneNode(true)));
 
-  const cardWidth = 496; // card width + border
-  const singleSetWidth = origCards.length * cardWidth;
+  const singleSetWidth = origCards.length * 481;
+  let x = 0, paused = false;
 
-  let x = 0;
-  let paused = false;
-  const speed = 1.0;
-
-  track.closest('.filmstrip-outer').addEventListener('mouseenter', () => paused = true);
-  track.closest('.filmstrip-outer').addEventListener('mouseleave', () => paused = false);
+  track.parentElement.addEventListener('mouseenter', () => paused = true);
+  track.parentElement.addEventListener('mouseleave', () => paused = false);
 
   function tick() {
-    if (!paused) {
-      x += speed;
-      if (x >= singleSetWidth) x = 0;
-      track.style.transform = 'translateX(-' + x.toFixed(1) + 'px)';
-    }
+    if (!paused) { x += 1; if (x >= singleSetWidth) x = 0; track.style.transform = 'translateX(-' + x + 'px)'; }
     requestAnimationFrame(tick);
   }
-  requestAnimationFrame(tick);
-});
+  tick();
+})();
 
 // Waitlist form
 document.getElementById('wlForm').addEventListener('submit', async e => {
