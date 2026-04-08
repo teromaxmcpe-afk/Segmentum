@@ -594,8 +594,7 @@ async function detectAndSuggest(file) {
 
     $('runBtn').classList.remove('hidden');
     $('runBtn').disabled = false;
-    $('qualityRow').classList.remove('hidden');
-    $('qualityRow').style.display = 'flex';
+    if ($('qualityRow')) { $('qualityRow').classList.remove('hidden'); $('qualityRow').style.display = 'flex'; }
     $('gtSection').classList.remove('hidden');
     $('progressBar').classList.add('hidden');
   } catch(e) {
@@ -1022,10 +1021,14 @@ async function startTraining() {
 const qt = $('qualityToggle');
 if (qt) {
   qt.addEventListener('change', () => {
-    $('toggleTrack').style.background = qt.checked ? 'rgba(0,229,200,0.2)' : 'var(--bg2)';
-    $('toggleTrack').style.borderColor = qt.checked ? 'var(--cyan)' : 'var(--border)';
-    $('toggleThumb').style.transform   = qt.checked ? 'translateX(18px)' : 'translateX(0)';
-    $('toggleThumb').style.background  = qt.checked ? 'var(--cyan)' : 'var(--muted)';
+    if ($('toggleTrack')) {
+      $('toggleTrack').style.background = qt.checked ? 'rgba(0,229,200,0.2)' : 'var(--bg2)';
+      $('toggleTrack').style.borderColor = qt.checked ? 'var(--cyan)' : 'var(--border)';
+    }
+    if ($('toggleThumb')) {
+      $('toggleThumb').style.transform = qt.checked ? 'translateX(18px)' : 'translateX(0)';
+      $('toggleThumb').style.background = qt.checked ? 'var(--cyan)' : 'var(--muted)';
+    }
   });
 }
 
