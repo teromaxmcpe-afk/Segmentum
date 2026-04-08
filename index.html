@@ -726,25 +726,6 @@ footer a:hover { color:var(--teal); }
   </div>
 </section>
 
-<script>
-(function(){
-  var track = document.getElementById('filmstrip');
-  if(!track) return;
-  var cards = Array.from(track.children);
-  cards.forEach(function(c){ track.appendChild(c.cloneNode(true)); });
-  cards.forEach(function(c){ track.appendChild(c.cloneNode(true)); });
-  var x = 0, paused = false;
-  var singleW = cards.length * 481;
-  track.parentElement.onmouseenter = function(){ paused = true; };
-  track.parentElement.onmouseleave = function(){ paused = false; };
-  function tick(){
-    if(!paused){ x += 1; if(x >= singleW) x = 0; track.style.transform = 'translateX(-'+x+'px)'; }
-    requestAnimationFrame(tick);
-  }
-  tick();
-})();
-</script>
-
 <!-- Manifesto / Why -->
 <section class="manifesto" id="why">
   <div class="wrap">
@@ -1039,7 +1020,7 @@ window.addEventListener('load', function() {
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
-}););
+});
 
 // Waitlist form
 document.getElementById('wlForm').addEventListener('submit', async e => {
@@ -1066,4 +1047,11 @@ function showR(id, btn) {
 }
 
 // Scroll reveal
-const ro = new IntersectionObserve
+const ro = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if(e.isIntersecting) { e.target.classList.add('in'); ro.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => ro.observe(el));
+
+</script>
+</body>
+</html>
